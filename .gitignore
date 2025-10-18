@@ -1,0 +1,8 @@
+node_modules/
+static/dist/
+__pycache__/
+*.pyc
+.env
+venv/
+.vscode/
+
