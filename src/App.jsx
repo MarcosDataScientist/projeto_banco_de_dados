@@ -10,6 +10,7 @@ import Funcionarios from './components/Funcionarios/Funcionarios'
 import EditarFuncionario from './components/Funcionarios/EditarFuncionario'
 import Avaliadores from './components/Avaliadores/Avaliadores'
 import CadastrarAvaliador from './components/Avaliadores/CadastrarAvaliador'
+import VisualizarAvaliador from './components/Avaliadores/VisualizarAvaliador'
 import Avaliacao from './components/Avaliacao/Avaliacao'
 import Relatorios from './components/Relatorios/Relatorios'
 import Configuracoes from './components/Configuracoes/Configuracoes'
@@ -30,6 +31,7 @@ function App() {
           <Route path="funcionarios/editar/:id" element={<EditarFuncionario />} />
           <Route path="avaliadores" element={<Avaliadores />} />
           <Route path="avaliadores/novo" element={<CadastrarAvaliador />} />
+          <Route path="avaliadores/visualizar/:cpf" element={<VisualizarAvaliador />} />
           <Route path="avaliacao" element={<Avaliacao />} />
           <Route path="relatorios" element={<Relatorios />} />
           <Route path="configuracoes" element={<Configuracoes />} />

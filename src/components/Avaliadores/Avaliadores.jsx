@@ -29,11 +29,11 @@ function Avaliadores() {
   }
 
   const handleViewClick = (avaliador) => {
-    console.log('Visualizar avaliador:', avaliador)
+    navigate(`/avaliadores/visualizar/${avaliador.cpf}`)
   }
 
   const handleEditClick = (avaliador) => {
-    console.log('Editar avaliador:', avaliador)
+    navigate(`/avaliadores/visualizar/${avaliador.cpf}`)
   }
 
   const handleDeleteClick = (avaliador) => {

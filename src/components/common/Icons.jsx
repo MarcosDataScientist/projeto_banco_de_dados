@@ -215,3 +215,14 @@ export const CloseIcon = () => (
     <line x1="6" y1="6" x2="18" y2="18"/>
   </svg>
 )
+
+export const CertificateIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M4 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/>
+    <path d="M9 22v-5"/>
+    <path d="M15 22v-5"/>
+    <path d="M9 7V2"/>
+    <path d="M15 7V2"/>
+    <circle cx="12" cy="13" r="2"/>
+  </svg>
+)
