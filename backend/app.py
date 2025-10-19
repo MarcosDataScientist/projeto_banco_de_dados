@@ -11,6 +11,8 @@ from backend.models.perguntas import PerguntasModel
 from backend.models.funcionarios import FuncionariosModel
 from backend.models.avaliacoes import AvaliacoesModel
 from backend.models.dashboard import DashboardModel
+from backend.models.questionarios import QuestionariosModel
+from backend.models.avaliadores import AvaliadoresModel
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -86,9 +88,14 @@ def get_perguntas():
     """Lista todas as perguntas"""
     try:
         categoria = request.args.get('categoria', type=int)
-        ativa = request.args.get('ativa', type=lambda v: v.lower() == 'true')
+        ativa_param = request.args.get('ativa')
         
-        perguntas = PerguntasModel.listar_todas(categoria, ativa)
+        # Converter parâmetro ativa para status
+        status = None
+        if ativa_param is not None:
+            status = 'Ativo' if ativa_param.lower() == 'true' else 'Inativo'
+        
+        perguntas = PerguntasModel.listar_todas(categoria, status)
         return jsonify(perguntas), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -349,6 +356,125 @@ def atualizar_status_avaliacao(avaliacao_id):
         return jsonify({'error': str(e)}), 500
 
 # ==========================================
+# ROTAS API - QUESTIONÁRIOS (FORMULÁRIOS)
+# ==========================================
+
+@app.route('/api/questionarios', methods=['GET'])
+def get_questionarios():
+    """Lista todos os questionários"""
+    try:
+        questionarios = QuestionariosModel.listar_todos()
+        return jsonify(questionarios), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/questionarios/<int:questionario_id>', methods=['GET'])
+def get_questionario(questionario_id):
+    """Busca um questionário específico"""
+    try:
+        questionario = QuestionariosModel.buscar_por_id(questionario_id)
+        if not questionario:
+            return jsonify({'error': 'Questionário não encontrado'}), 404
+        
+        # Buscar perguntas do questionário
+        perguntas = QuestionariosModel.buscar_perguntas(questionario_id)
+        questionario['perguntas'] = perguntas
+        
+        return jsonify(questionario), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/questionarios', methods=['POST'])
+def criar_questionario():
+    """Cria um novo questionário"""
+    try:
+        data = request.get_json()
+        
+        # Validações
+        if not data.get('nome'):
+            return jsonify({'error': 'nome é obrigatório'}), 400
+        if not data.get('classificacao_cod'):
+            return jsonify({'error': 'classificacao_cod é obrigatório'}), 400
+        
+        questionario = QuestionariosModel.criar(
+            data['nome'],
+            data.get('tipo'),
+            data['classificacao_cod'],
+            data.get('status', 'Ativo')
+        )
+        
+        # Vincular perguntas se fornecidas
+        if data.get('questoes_ids'):
+            QuestionariosModel.vincular_perguntas(
+                questionario[0]['id'],
+                data['questoes_ids']
+            )
+        
+        return jsonify(questionario[0]), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/questionarios/<int:questionario_id>', methods=['PUT'])
+def atualizar_questionario(questionario_id):
+    """Atualiza um questionário"""
+    try:
+        data = request.get_json()
+        
+        questionario = QuestionariosModel.atualizar(
+            questionario_id,
+            data.get('nome'),
+            data.get('tipo'),
+            data.get('status'),
+            data.get('classificacao_cod')
+        )
+        
+        # Atualizar perguntas vinculadas se fornecidas
+        if 'questoes_ids' in data:
+            QuestionariosModel.vincular_perguntas(
+                questionario_id,
+                data['questoes_ids']
+            )
+        
+        if not questionario:
+            return jsonify({'error': 'Nenhum campo para atualizar'}), 400
+        
+        return jsonify(questionario[0]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/questionarios/<int:questionario_id>', methods=['DELETE'])
+def deletar_questionario(questionario_id):
+    """
+    Deleta um questionário e todos os dados relacionados em cascata:
+    1. Respostas das avaliações que usaram o questionário
+    2. Avaliações que usaram o questionário
+    3. Vínculos com perguntas (Questionario_Questao)
+    4. O questionário em si
+    """
+    try:
+        resultado = QuestionariosModel.deletar_com_cascata(questionario_id)
+        
+        if resultado['sucesso']:
+            return jsonify({
+                'message': 'Questionário deletado com sucesso',
+                'detalhes': resultado
+            }), 200
+        else:
+            return jsonify({'error': 'Questionário não encontrado'}), 404
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/classificacoes', methods=['GET'])
+def get_classificacoes():
+    """Lista todas as classificações"""
+    try:
+        classificacoes = QuestionariosModel.listar_classificacoes()
+        return jsonify(classificacoes), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==========================================
 # ROTAS FRONTEND (devem vir por último!)
 # ==========================================
 
@@ -370,6 +496,88 @@ def serve_static(path):
     else:
         # Para rotas do React Router, serve o index.html
         return send_from_directory(app.static_folder, 'index.html')
+
+# ==========================================
+# ROTAS DE AVALIADORES
+# ==========================================
+
+@app.route('/api/avaliadores', methods=['GET'])
+def get_avaliadores():
+    """Lista todos os avaliadores (funcionários com certificados)"""
+    try:
+        avaliadores = AvaliadoresModel.listar_avaliadores()
+        return jsonify(avaliadores), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/avaliadores/<cpf>', methods=['GET'])
+def get_avaliador(cpf):
+    """Busca um avaliador específico por CPF"""
+    try:
+        avaliador = AvaliadoresModel.buscar_avaliador_por_cpf(cpf)
+        if avaliador:
+            return jsonify(avaliador), 200
+        else:
+            return jsonify({'error': 'Avaliador não encontrado'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/avaliadores/<cpf>/certificados', methods=['GET'])
+def get_certificados_avaliador(cpf):
+    """Lista todos os certificados de um avaliador"""
+    try:
+        certificados = AvaliadoresModel.listar_certificados_avaliador(cpf)
+        return jsonify(certificados), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/treinamentos', methods=['GET'])
+def get_treinamentos():
+    """Lista todos os treinamentos disponíveis"""
+    try:
+        conn = Database.get_connection()
+        if not conn:
+            raise Exception("Não foi possível conectar ao banco de dados")
+        
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT cod_treinamento, nome, data_realizacao, validade, local FROM Treinamento ORDER BY nome")
+            treinamentos = []
+            for row in cursor.fetchall():
+                treinamentos.append({
+                    'cod_treinamento': row[0],
+                    'nome': row[1],
+                    'data_realizacao': row[2].isoformat() if row[2] else None,
+                    'validade': row[3].isoformat() if row[3] else None,
+                    'local': row[4]
+                })
+            return jsonify(treinamentos), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if 'conn' in locals():
+            Database.return_connection(conn)
+
+@app.route('/api/funcionario-treinamento', methods=['POST'])
+def criar_vinculo_funcionario_treinamento():
+    """Cria vínculo entre funcionário e treinamento"""
+    try:
+        dados = request.get_json()
+        conn = Database.get_connection()
+        if not conn:
+            raise Exception("Não foi possível conectar ao banco de dados")
+        
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO Funcionario_Treinamento (funcionario_cpf, treinamento_cod, n_certificado)
+                VALUES (%s, %s, %s)
+            """, (dados['funcionario_cpf'], dados['treinamento_cod'], dados['n_certificado']))
+            conn.commit()
+            return jsonify({'message': 'Vínculo criado com sucesso'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if 'conn' in locals():
+            Database.return_connection(conn)
 
 # ==========================================
 # TRATAMENTO DE ERROS

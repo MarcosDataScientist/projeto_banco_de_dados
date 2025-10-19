@@ -1,17 +1,19 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Layout from './components/Layout'
-import Home from './components/Home'
-import Perguntas from './components/Perguntas'
-import EditarPergunta from './components/EditarPergunta'
-import Formularios from './components/Formularios'
-import Funcionarios from './components/Funcionarios'
-import EditarFuncionario from './components/EditarFuncionario'
-import Avaliadores from './components/Avaliadores'
-import Avaliacao from './components/Avaliacao'
-import Relatorios from './components/Relatorios'
-import Configuracoes from './components/Configuracoes'
-import NotFound from './components/NotFound'
+import Layout from './components/common/Layout'
+import Home from './components/common/Home'
+import Perguntas from './components/Perguntas/Perguntas'
+import EditarPergunta from './components/Perguntas/EditarPergunta'
+import Questionarios from './components/Questionarios/Questionarios'
+import CadastrarQuestionario from './components/Questionarios/CadastrarQuestionario'
+import Funcionarios from './components/Funcionarios/Funcionarios'
+import EditarFuncionario from './components/Funcionarios/EditarFuncionario'
+import Avaliadores from './components/Avaliadores/Avaliadores'
+import CadastrarAvaliador from './components/Avaliadores/CadastrarAvaliador'
+import Avaliacao from './components/Avaliacao/Avaliacao'
+import Relatorios from './components/Relatorios/Relatorios'
+import Configuracoes from './components/Configuracoes/Configuracoes'
+import NotFound from './components/common/NotFound'
 
 function App() {
   return (
@@ -22,10 +24,12 @@ function App() {
           <Route path="dashboard" element={<Home />} />
           <Route path="perguntas" element={<Perguntas />} />
           <Route path="perguntas/editar/:id" element={<EditarPergunta />} />
-          <Route path="formularios" element={<Formularios />} />
+          <Route path="questionarios" element={<Questionarios />} />
+          <Route path="questionarios/novo" element={<CadastrarQuestionario />} />
           <Route path="funcionarios" element={<Funcionarios />} />
           <Route path="funcionarios/editar/:id" element={<EditarFuncionario />} />
           <Route path="avaliadores" element={<Avaliadores />} />
+          <Route path="avaliadores/novo" element={<CadastrarAvaliador />} />
           <Route path="avaliacao" element={<Avaliacao />} />
           <Route path="relatorios" element={<Relatorios />} />
           <Route path="configuracoes" element={<Configuracoes />} />

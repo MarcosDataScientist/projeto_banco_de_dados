@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SaveIcon, XIcon, PlusIcon, DeleteIcon } from './Icons'
+import { SaveIcon, XIcon, PlusIcon, DeleteIcon } from '../common/Icons'
 
 function CadastrarPergunta() {
   const navigate = useNavigate()

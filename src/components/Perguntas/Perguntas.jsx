@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SearchIcon, PlusIcon, EditIcon, DeleteIcon, QuestionsIcon } from './Icons'
-import api from '../services/api'
+import { SearchIcon, PlusIcon, EditIcon, DeleteIcon, QuestionsIcon } from '../common/Icons'
+import api from '../../services/api'
 
 function Perguntas() {
   const navigate = useNavigate()
@@ -102,8 +102,7 @@ function Perguntas() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h2>Cadastro de Perguntas</h2>
-        <p>Gerencie as perguntas para os formulários de avaliação de desligamento</p>
+        <h2>Listagem perguntas</h2>
       </div>
 
       <div className="stats-row">

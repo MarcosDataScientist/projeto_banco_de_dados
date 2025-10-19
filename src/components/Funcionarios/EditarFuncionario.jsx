@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { SaveIcon, XIcon, UserIcon } from './Icons'
-import api from '../services/api'
+import { SaveIcon, XIcon, UserIcon } from '../common/Icons'
+import api from '../../services/api'
 
 function EditarFuncionario() {
   const { id } = useParams() // id aqui é o CPF

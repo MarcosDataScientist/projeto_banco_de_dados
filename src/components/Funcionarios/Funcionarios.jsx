@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SearchIcon, PlusIcon, EditIcon, DeleteIcon, CalendarIcon, UsersIcon, EyeIcon } from './Icons'
-import ConfirmModal from './ConfirmModal'
-import api from '../services/api'
+import { SearchIcon, PlusIcon, EditIcon, DeleteIcon, CalendarIcon, UsersIcon, EyeIcon } from '../common/Icons'
+import ConfirmModal from '../common/ConfirmModal'
+import api from '../../services/api'
 
 function Funcionarios() {
   const navigate = useNavigate()
@@ -105,8 +105,8 @@ function Funcionarios() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h2>Funcionários</h2>
-        <p>Gerencie funcionários em processo de desligamento e suas avaliações</p>
+        <h2>Listagem funcionários</h2>
+        
       </div>
 
       <div className="stats-row">

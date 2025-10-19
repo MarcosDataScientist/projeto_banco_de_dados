@@ -167,6 +167,68 @@ class ApiService {
       body: JSON.stringify(dados),
     })
   }
+
+  // ==========================================
+  // QUESTIONÁRIOS (FORMULÁRIOS)
+  // ==========================================
+
+  async getQuestionarios() {
+    return this.request('/questionarios')
+  }
+
+  async getQuestionario(id) {
+    return this.request(`/questionarios/${id}`)
+  }
+
+  async criarQuestionario(dados) {
+    return this.request('/questionarios', {
+      method: 'POST',
+      body: JSON.stringify(dados),
+    })
+  }
+
+  async atualizarQuestionario(id, dados) {
+    return this.request(`/questionarios/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados),
+    })
+  }
+
+  async deletarQuestionario(id) {
+    return this.request(`/questionarios/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getClassificacoes() {
+    return this.request('/classificacoes')
+  }
+
+  // Avaliadores
+  async getAvaliadores() {
+    return this.request('/avaliadores')
+  }
+
+  async getAvaliador(cpf) {
+    return this.request(`/avaliadores/${cpf}`)
+  }
+
+  async getCertificadosAvaliador(cpf) {
+    return this.request(`/avaliadores/${cpf}/certificados`)
+  }
+
+  // Treinamentos
+  async getTreinamentos() {
+    return this.request('/treinamentos')
+  }
+
+  // Vínculo Funcionário-Treinamento
+  async criarVinculoFuncionarioTreinamento(dados) {
+    return this.request('/funcionario-treinamento', {
+      method: 'POST',
+      body: JSON.stringify(dados),
+    })
+  }
 }
 
 export default new ApiService()

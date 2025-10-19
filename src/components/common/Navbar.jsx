@@ -21,7 +21,7 @@ function Navbar({ currentPage, setCurrentPage }) {
     { id: 'avaliacao', label: 'Avaliação', icon: <AvaliacaoIcon /> },
     { id: 'funcionarios', label: 'Funcionários', icon: <UsersIcon /> },
     { id: 'avaliadores', label: 'Avaliadores', icon: <AvaliadoresIcon /> },
-    { id: 'formularios', label: 'Formulários', icon: <FormsIcon /> },
+    { id: 'questionarios', label: 'Questionários', icon: <FormsIcon /> },
     { id: 'perguntas', label: 'Perguntas', icon: <QuestionsIcon /> },
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'relatorios', label: 'Relatórios', icon: <ReportsIcon /> }

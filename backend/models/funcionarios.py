@@ -4,6 +4,7 @@ Adaptado para o novo schema: Funcionario (sem departamentos)
 """
 from backend.config.database import execute_query
 
+
 class FuncionariosModel:
     """Classe com queries SQL para funcionários"""
     

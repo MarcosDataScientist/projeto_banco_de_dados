@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { SettingsIcon } from './Icons'
+import { SettingsIcon } from '../common/Icons'
 
 function Configuracoes() {
   const [configuracoes, setConfiguracoes] = useState({

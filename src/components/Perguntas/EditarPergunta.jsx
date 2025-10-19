@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { SaveIcon, XIcon, QuestionsIcon, PlusIcon, DeleteIcon } from './Icons'
-import api from '../services/api'
+import { SaveIcon, XIcon, QuestionsIcon, PlusIcon, DeleteIcon } from '../common/Icons'
+import api from '../../services/api'
 
 function EditarPergunta() {
   const { id } = useParams() // id é o cod_questao

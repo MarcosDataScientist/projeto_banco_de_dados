@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ReportsIcon, SearchIcon, CalendarIcon, FileIcon, PlusIcon, EditIcon, EyeIcon, DeleteIcon, DownloadIcon } from './Icons'
+import { ReportsIcon, SearchIcon, CalendarIcon, FileIcon, PlusIcon, EditIcon, EyeIcon, DeleteIcon, DownloadIcon } from '../common/Icons'
 
 function Relatorios() {
   const [searchTerm, setSearchTerm] = useState('')
