@@ -41,66 +41,201 @@ class PerguntasModel:
         return execute_query(query, tuple(params) if params else None)
     
     @staticmethod
+    def listar_com_paginacao(filtro_tipo=None, filtro_status=None, page=1, per_page=10):
+        """Lista perguntas com paginação"""
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
+        
+        connection = None
+        cursor = None
+        
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            
+            # Query base
+            base_query = """
+                FROM Questao q
+                WHERE 1=1
+            """
+            
+            params = []
+            
+            if filtro_tipo:
+                base_query += " AND q.tipo_questao = %s"
+                params.append(filtro_tipo)
+            
+            if filtro_status:
+                base_query += " AND q.status = %s"
+                params.append(filtro_status)
+            
+            # Contar total de registros
+            count_query = f"SELECT COUNT(*) as total {base_query}"
+            cursor.execute(count_query, tuple(params) if params else None)
+            total = cursor.fetchone()['total']
+            
+            # Query com paginação
+            offset = (page - 1) * per_page
+            data_query = f"""
+                SELECT 
+                    q.cod_questao,
+                    q.tipo_questao,
+                    q.texto_questao,
+                    q.status
+                {base_query}
+                ORDER BY q.cod_questao
+                LIMIT %s OFFSET %s
+            """
+            
+            params.extend([per_page, offset])
+            cursor.execute(data_query, tuple(params))
+            perguntas = [dict(row) for row in cursor.fetchall()]
+            
+            # Para cada pergunta, buscar opções se for múltipla escolha
+            for pergunta in perguntas:
+                if pergunta['tipo_questao'] == 'Múltipla Escolha':
+                    opcoes = PerguntasModel.buscar_opcoes_resposta(pergunta['cod_questao'])
+                    pergunta['opcoes'] = opcoes
+            
+            return perguntas, total
+            
+        except Exception as error:
+            print(f"[ERRO] Erro ao listar perguntas com paginação: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
+    
+    @staticmethod
     def buscar_por_id(questao_id):
         """Busca uma questão específica por ID"""
-        query = """
-            SELECT 
-                q.cod_questao,
-                q.tipo_questao,
-                q.texto_questao,
-                q.status
-            FROM Questao q
-            WHERE q.cod_questao = %s
-        """
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
         
-        results = execute_query(query, (questao_id,))
-        resultado = results[0] if results else None
+        connection = None
+        cursor = None
         
-        # Se for múltipla escolha, buscar opções
-        if resultado and resultado['tipo_questao'] == 'Múltipla Escolha':
-            opcoes = PerguntasModel.buscar_opcoes_resposta(questao_id)
-            resultado['opcoes'] = opcoes
-        
-        return resultado
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            
+            query = """
+                SELECT 
+                    q.cod_questao,
+                    q.tipo_questao,
+                    q.texto_questao,
+                    q.status
+                FROM Questao q
+                WHERE q.cod_questao = %s
+            """
+            
+            cursor.execute(query, (questao_id,))
+            resultado = cursor.fetchone()
+            
+            if resultado:
+                resultado = dict(resultado)
+                
+                # Se for múltipla escolha, buscar opções
+                if resultado['tipo_questao'] == 'Múltipla Escolha':
+                    opcoes = PerguntasModel.buscar_opcoes_resposta(questao_id)
+                    resultado['opcoes'] = opcoes
+            
+            return resultado
+            
+        except Exception as error:
+            print(f"[ERRO] Erro ao buscar pergunta: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
     
     @staticmethod
     def buscar_opcoes_resposta(questao_id):
         """Busca as opções de resposta de uma questão de múltipla escolha"""
-        query = """
-            SELECT 
-                qme.opcoes
-            FROM Questao_Multipla_Escolha qme
-            WHERE qme.questao_cod = %s
-        """
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
         
-        results = execute_query(query, (questao_id,))
-        if results and results[0].get('opcoes'):
-            # opcoes está em formato JSONB
-            return results[0]['opcoes']
-        return []
+        connection = None
+        cursor = None
+        
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            
+            query = """
+                SELECT 
+                    qme.opcoes
+                FROM Questao_Multipla_Escolha qme
+                WHERE qme.questao_cod = %s
+            """
+            
+            cursor.execute(query, (questao_id,))
+            resultado = cursor.fetchone()
+            
+            if resultado and resultado.get('opcoes'):
+                # opcoes está em formato JSONB
+                return resultado['opcoes']
+            return []
+            
+        except Exception as error:
+            print(f"[ERRO] Erro ao buscar opções: {error}")
+            return []
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
     
     @staticmethod
     def criar(texto_questao, tipo_questao, status='Ativo', opcoes=None):
         """Cria uma nova questão"""
-        # Criar a questão base
-        query = """
-            INSERT INTO Questao (tipo_questao, texto_questao, status)
-            VALUES (%s, %s, %s)
-            RETURNING cod_questao, tipo_questao, texto_questao, status
-        """
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
         
-        resultado = execute_query(query, (tipo_questao, texto_questao, status))
+        connection = None
+        cursor = None
         
-        if resultado and opcoes and tipo_questao == 'Múltipla Escolha':
-            # Inserir opções para múltipla escolha
-            cod_questao = resultado[0]['cod_questao']
-            PerguntasModel.criar_opcoes_multipla_escolha(cod_questao, opcoes)
-        elif resultado and tipo_questao == 'Texto Livre':
-            # Inserir na tabela de texto livre
-            cod_questao = resultado[0]['cod_questao']
-            PerguntasModel.criar_questao_texto_livre(cod_questao)
-        
-        return resultado
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            
+            # Criar a questão base
+            query = """
+                INSERT INTO Questao (tipo_questao, texto_questao, status)
+                VALUES (%s, %s, %s)
+                RETURNING cod_questao, tipo_questao, texto_questao, status
+            """
+            
+            cursor.execute(query, (tipo_questao, texto_questao, status))
+            connection.commit()
+            
+            resultado = cursor.fetchone()
+            
+            if resultado and opcoes and tipo_questao == 'Múltipla Escolha':
+                # Inserir opções para múltipla escolha
+                cod_questao = resultado['cod_questao']
+                PerguntasModel.criar_opcoes_multipla_escolha(cod_questao, opcoes)
+            elif resultado and tipo_questao == 'Texto Livre':
+                # Inserir na tabela de texto livre
+                cod_questao = resultado['cod_questao']
+                PerguntasModel.criar_questao_texto_livre(cod_questao)
+            
+            return [dict(resultado)] if resultado else []
+            
+        except Exception as error:
+            if connection:
+                connection.rollback()
+            print(f"[ERRO] Erro ao criar pergunta: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
     
     @staticmethod
     def criar_opcoes_multipla_escolha(questao_cod, opcoes):
@@ -135,53 +270,119 @@ class PerguntasModel:
     @staticmethod
     def atualizar(questao_id, texto_questao=None, tipo_questao=None, status=None):
         """Atualiza uma questão"""
-        campos = []
-        params = []
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
         
-        if texto_questao is not None:
-            campos.append("texto_questao = %s")
-            params.append(texto_questao)
+        connection = None
+        cursor = None
         
-        if tipo_questao is not None:
-            campos.append("tipo_questao = %s")
-            params.append(tipo_questao)
-        
-        if status is not None:
-            campos.append("status = %s")
-            params.append(status)
-        
-        if not campos:
-            return None
-        
-        params.append(questao_id)
-        
-        query = f"""
-            UPDATE Questao 
-            SET {', '.join(campos)}
-            WHERE cod_questao = %s
-            RETURNING cod_questao, tipo_questao, texto_questao, status
-        """
-        
-        return execute_query(query, tuple(params))
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            
+            campos = []
+            params = []
+            
+            if texto_questao is not None:
+                campos.append("texto_questao = %s")
+                params.append(texto_questao)
+            
+            if tipo_questao is not None:
+                campos.append("tipo_questao = %s")
+                params.append(tipo_questao)
+            
+            if status is not None:
+                campos.append("status = %s")
+                params.append(status)
+            
+            if not campos:
+                return None
+            
+            params.append(questao_id)
+            
+            query = f"""
+                UPDATE Questao 
+                SET {', '.join(campos)}
+                WHERE cod_questao = %s
+                RETURNING cod_questao, tipo_questao, texto_questao, status
+            """
+            
+            cursor.execute(query, tuple(params))
+            connection.commit()
+            
+            resultado = cursor.fetchone()
+            return [dict(resultado)] if resultado else []
+            
+        except Exception as error:
+            if connection:
+                connection.rollback()
+            print(f"[ERRO] Erro ao atualizar pergunta: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
     
     @staticmethod
     def atualizar_opcoes_multipla_escolha(questao_cod, opcoes):
         """Atualiza as opções de uma questão de múltipla escolha"""
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
         import json
         
-        if isinstance(opcoes, list):
-            opcoes_json = json.dumps(opcoes)
-        else:
-            opcoes_json = opcoes
+        connection = None
+        cursor = None
         
-        query = """
-            UPDATE Questao_Multipla_Escolha
-            SET opcoes = %s::jsonb
-            WHERE questao_cod = %s
-            RETURNING questao_cod
-        """
-        
-        return execute_query(query, (opcoes_json, questao_cod))
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            
+            if isinstance(opcoes, list):
+                opcoes_json = json.dumps(opcoes)
+            else:
+                opcoes_json = opcoes
+            
+            # Primeiro, verificar se existe registro
+            check_query = """
+                SELECT questao_cod FROM Questao_Multipla_Escolha WHERE questao_cod = %s
+            """
+            cursor.execute(check_query, (questao_cod,))
+            existe = cursor.fetchone()
+            
+            if existe:
+                # Atualizar se existe
+                update_query = """
+                    UPDATE Questao_Multipla_Escolha
+                    SET opcoes = %s::jsonb
+                    WHERE questao_cod = %s
+                    RETURNING questao_cod
+                """
+                cursor.execute(update_query, (opcoes_json, questao_cod))
+            else:
+                # Criar se não existe
+                insert_query = """
+                    INSERT INTO Questao_Multipla_Escolha (questao_cod, opcoes)
+                    VALUES (%s, %s::jsonb)
+                    RETURNING questao_cod
+                """
+                cursor.execute(insert_query, (questao_cod, opcoes_json))
+            
+            connection.commit()
+            
+            resultado = cursor.fetchone()
+            return [dict(resultado)] if resultado else []
+            
+        except Exception as error:
+            if connection:
+                connection.rollback()
+            print(f"[ERRO] Erro ao atualizar opções: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
     
     @staticmethod
     def deletar(questao_id):

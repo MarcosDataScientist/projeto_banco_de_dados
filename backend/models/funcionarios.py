@@ -39,6 +39,71 @@ class FuncionariosModel:
         return execute_query(query, tuple(params) if params else None)
     
     @staticmethod
+    def listar_com_paginacao(filtro_status=None, filtro_setor=None, page=1, per_page=20):
+        """Lista funcionários com paginação"""
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
+        
+        connection = None
+        cursor = None
+        
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            
+            # Query base
+            base_query = """
+                FROM Funcionario f
+                WHERE 1=1
+            """
+            
+            params = []
+            
+            if filtro_status:
+                base_query += " AND f.status = %s"
+                params.append(filtro_status)
+            
+            if filtro_setor:
+                base_query += " AND f.setor = %s"
+                params.append(filtro_setor)
+            
+            # Contar total de registros
+            count_query = f"SELECT COUNT(*) as total {base_query}"
+            cursor.execute(count_query, tuple(params) if params else None)
+            total = cursor.fetchone()['total']
+            
+            # Query com paginação
+            offset = (page - 1) * per_page
+            data_query = f"""
+                SELECT 
+                    f.cpf,
+                    f.nome,
+                    f.email,
+                    f.setor,
+                    f.ctps,
+                    f.tipo,
+                    f.status
+                {base_query}
+                ORDER BY f.nome
+                LIMIT %s OFFSET %s
+            """
+            
+            params.extend([per_page, offset])
+            cursor.execute(data_query, tuple(params))
+            funcionarios = [dict(row) for row in cursor.fetchall()]
+            
+            return funcionarios, total
+            
+        except Exception as error:
+            print(f"[ERRO] Erro ao listar funcionários com paginação: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
+    
+    @staticmethod
     def buscar_por_cpf(cpf):
         """Busca um funcionário específico por CPF"""
         query = """
@@ -65,18 +130,46 @@ class FuncionariosModel:
     @staticmethod
     def criar(nome, cpf, email, setor, ctps=None, tipo=None, status='Ativo'):
         """Cria um novo funcionário"""
-        query = """
-            INSERT INTO Funcionario 
-            (cpf, nome, email, setor, ctps, tipo, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            RETURNING cpf, nome, email, status
-        """
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
         
-        return execute_query(query, (cpf, nome, email, setor, ctps, tipo, status))
+        connection = None
+        cursor = None
+        
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            
+            query = """
+                INSERT INTO Funcionario 
+                (cpf, nome, email, setor, ctps, tipo, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING cpf, nome, email, status
+            """
+            
+            cursor.execute(query, (cpf, nome, email, setor, ctps, tipo, status))
+            connection.commit()
+            
+            result = cursor.fetchone()
+            return [dict(result)] if result else []
+            
+        except Exception as error:
+            if connection:
+                connection.rollback()
+            print(f"[ERRO] Erro ao criar funcionário: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
     
     @staticmethod
     def atualizar(cpf, **campos):
         """Atualiza um funcionário"""
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
+        
         campos_update = []
         params = []
         
@@ -92,14 +185,36 @@ class FuncionariosModel:
         
         params.append(cpf)
         
-        query = f"""
-            UPDATE Funcionario 
-            SET {', '.join(campos_update)}
-            WHERE cpf = %s
-            RETURNING cpf, nome, email, status
-        """
+        connection = None
+        cursor = None
         
-        return execute_query(query, tuple(params))
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            
+            query = f"""
+                UPDATE Funcionario 
+                SET {', '.join(campos_update)}
+                WHERE cpf = %s
+                RETURNING cpf, nome, email, status
+            """
+            
+            cursor.execute(query, tuple(params))
+            connection.commit()
+            
+            result = cursor.fetchone()
+            return [dict(result)] if result else []
+            
+        except Exception as error:
+            if connection:
+                connection.rollback()
+            print(f"[ERRO] Erro ao atualizar funcionário: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
     
     @staticmethod
     def deletar(cpf):

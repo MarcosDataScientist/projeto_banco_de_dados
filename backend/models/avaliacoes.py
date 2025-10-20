@@ -241,6 +241,16 @@ class AvaliacoesModel:
         return execute_query(query, tuple(params) if params else None)
     
     @staticmethod
+    def buscar_por_avaliador(avaliador_cpf):
+        """Busca avaliações por CPF do avaliador"""
+        query = """
+            SELECT cod_avaliacao, data_completa, avaliado_cpf
+            FROM Avaliacao 
+            WHERE avaliador_cpf = %s
+        """
+        return execute_query(query, (avaliador_cpf,))
+    
+    @staticmethod
     def deletar(avaliacao_id):
         """Deleta uma avaliação"""
         query = "DELETE FROM Avaliacao WHERE cod_avaliacao = %s"

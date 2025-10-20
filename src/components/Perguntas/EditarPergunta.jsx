@@ -58,9 +58,16 @@ function EditarPergunta() {
       [name]: value
     }))
 
-    // Se mudar o tipo, limpar opções se necessário
-    if (name === 'tipo_questao' && value !== 'Múltipla Escolha') {
-      setOpcoes([])
+    // Se mudar o tipo, ajustar opções
+    if (name === 'tipo_questao') {
+      if (value !== 'Múltipla Escolha') {
+        setOpcoes([])
+      } else {
+        // Se mudou para múltipla escolha e não tem opções, adicionar duas opções vazias
+        if (opcoes.length === 0) {
+          setOpcoes(['', ''])
+        }
+      }
     }
   }
 

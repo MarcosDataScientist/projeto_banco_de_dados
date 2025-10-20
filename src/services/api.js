@@ -2,7 +2,7 @@
  * Serviço de API para comunicação com o backend
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
 
 class ApiService {
   async request(endpoint, options = {}) {
@@ -21,7 +21,9 @@ class ApiService {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erro na requisição')
+        const error = new Error(data.error || 'Erro na requisição')
+        error.response = { status: response.status, data }
+        throw error
       }
 
       return data
@@ -59,10 +61,27 @@ class ApiService {
   // FUNCIONÁRIOS
   // ==========================================
 
-  async getFuncionarios(status = null, departamento = null) {
+  async getFuncionarios(status = null, departamento = null, page = 1, per_page = 20) {
     let query = ''
-    if (status) query += `?status=${status}`
-    if (departamento) query += `${query ? '&' : '?'}departamento=${departamento}`
+    const params = []
+    
+    if (status) {
+      params.push(`status=${status}`)
+    }
+    if (departamento) {
+      params.push(`departamento=${departamento}`)
+    }
+    if (page) {
+      params.push(`page=${page}`)
+    }
+    if (per_page) {
+      params.push(`per_page=${per_page}`)
+    }
+    
+    if (params.length > 0) {
+      query = '?' + params.join('&')
+    }
+    
     return this.request(`/funcionarios${query}`)
   }
 
@@ -77,6 +96,10 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(dados),
     })
+  }
+
+  async cadastrarFuncionario(dados) {
+    return this.criarFuncionario(dados)
   }
 
   async atualizarFuncionario(cpf, dados) {
@@ -104,10 +127,27 @@ class ApiService {
   // PERGUNTAS
   // ==========================================
 
-  async getPerguntas(categoria = null, ativa = null) {
+  async getPerguntas(categoria = null, ativa = null, page = 1, per_page = 10) {
     let query = ''
-    if (categoria) query += `?categoria=${categoria}`
-    if (ativa !== null) query += `${query ? '&' : '?'}ativa=${ativa}`
+    const params = []
+    
+    if (categoria) {
+      params.push(`categoria=${categoria}`)
+    }
+    if (ativa !== null) {
+      params.push(`ativa=${ativa}`)
+    }
+    if (page) {
+      params.push(`page=${page}`)
+    }
+    if (per_page) {
+      params.push(`per_page=${per_page}`)
+    }
+    
+    if (params.length > 0) {
+      query = '?' + params.join('&')
+    }
+    
     return this.request(`/perguntas${query}`)
   }
 

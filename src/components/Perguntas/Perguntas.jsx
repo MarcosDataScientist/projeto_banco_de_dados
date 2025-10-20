@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SearchIcon, PlusIcon, EditIcon, DeleteIcon, QuestionsIcon } from '../common/Icons'
+import { SearchIcon, PlusIcon, EditIcon, DeleteIcon, QuestionsIcon, EyeIcon } from '../common/Icons'
+import CadastrarPergunta from './CadastrarPergunta'
 import api from '../../services/api'
 
 function Perguntas() {
@@ -13,22 +14,39 @@ function Perguntas() {
   const [filtroStatus, setFiltroStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [isCadastroModalOpen, setIsCadastroModalOpen] = useState(false)
+  const [isVisualizarModalOpen, setIsVisualizarModalOpen] = useState(false)
+  const [perguntaToView, setPerguntaToView] = useState(null)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    per_page: 10,
+    total: 0,
+    total_pages: 0,
+    has_prev: false,
+    has_next: false
+  })
 
   useEffect(() => {
     carregarDados()
-  }, [])
+  }, [pagination.page])
 
   const carregarDados = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      const [perguntasData, categoriasData] = await Promise.all([
-        api.getPerguntas(),
+      const [perguntasResponse, categoriasData] = await Promise.all([
+        api.getPerguntas(null, null, pagination.page, pagination.per_page),
         api.getCategorias()
       ])
       
-      setPerguntas(perguntasData)
+      if (perguntasResponse.perguntas && perguntasResponse.pagination) {
+        setPerguntas(perguntasResponse.perguntas)
+        setPagination(perguntasResponse.pagination)
+      } else {
+        // Fallback para resposta sem paginação
+        setPerguntas(perguntasResponse)
+      }
       setCategorias(categoriasData)
     } catch (err) {
       console.error('Erro ao carregar perguntas:', err)
@@ -38,16 +56,30 @@ function Perguntas() {
     }
   }
 
-  const filteredPerguntas = perguntas.filter(pergunta => {
-    const matchSearch = pergunta.texto_questao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       (pergunta.tipo_questao && pergunta.tipo_questao.toLowerCase().includes(searchTerm.toLowerCase()))
-    
-    const matchCategoria = !filtroCategoria || pergunta.categoria === filtroCategoria
-    const matchTipo = !filtroTipo || pergunta.tipo_questao === filtroTipo
-    const matchStatus = !filtroStatus || pergunta.status === filtroStatus
+  const handleCadastroSuccess = () => {
+    // Recarregar a lista de perguntas após cadastro
+    carregarDados()
+  }
 
-    return matchSearch && matchCategoria && matchTipo && matchStatus
-  })
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({
+      ...prev,
+      page: newPage
+    }))
+  }
+
+  const handleViewClick = (pergunta) => {
+    setPerguntaToView(pergunta)
+    setIsVisualizarModalOpen(true)
+  }
+
+  const handleCloseViewModal = () => {
+    setIsVisualizarModalOpen(false)
+    setPerguntaToView(null)
+  }
+
+  // Usar perguntas diretamente, filtros serão implementados no backend futuramente
+  const filteredPerguntas = perguntas
 
   const getTipoBadgeColor = (tipo) => {
     switch (tipo) {
@@ -134,7 +166,7 @@ function Perguntas() {
           </div>
           <button 
             className="btn-primary"
-            onClick={() => alert('Página de cadastro de pergunta será implementada em breve!')}
+            onClick={() => setIsCadastroModalOpen(true)}
           >
             <PlusIcon /> Nova Pergunta
           </button>
@@ -191,6 +223,13 @@ function Perguntas() {
                 </div>
                 <div className="item-actions">
                   <button 
+                    className="btn-action btn-view"
+                    onClick={() => handleViewClick(pergunta)}
+                    title="Visualizar"
+                  >
+                    <EyeIcon />
+                  </button>
+                  <button 
                     className="btn-action btn-edit"
                     onClick={() => navigate(`/perguntas/editar/${pergunta.cod_questao}`)}
                     title="Editar"
@@ -207,6 +246,160 @@ function Perguntas() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Paginação */}
+        {pagination.total > 0 && (
+          <div className="pagination-container">
+            <div className="pagination-info">
+              <span>
+                Mostrando {((pagination.page - 1) * pagination.per_page) + 1} a {Math.min(pagination.page * pagination.per_page, pagination.total)} de {pagination.total} perguntas
+              </span>
+            </div>
+            
+            <div className="pagination-controls">
+              <button 
+                className="pagination-btn"
+                onClick={() => handlePageChange(1)}
+                disabled={!pagination.has_prev}
+                title="Primeira página"
+              >
+                ««
+              </button>
+              
+              <button 
+                className="pagination-btn"
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={!pagination.has_prev}
+                title="Página anterior"
+              >
+                «
+              </button>
+              
+              <div className="pagination-pages">
+                {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
+                  let pageNum;
+                  if (pagination.total_pages <= 5) {
+                    pageNum = i + 1;
+                  } else if (pagination.page <= 3) {
+                    pageNum = i + 1;
+                  } else if (pagination.page >= pagination.total_pages - 2) {
+                    pageNum = pagination.total_pages - 4 + i;
+                  } else {
+                    pageNum = pagination.page - 2 + i;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      className={`pagination-btn ${pageNum === pagination.page ? 'active' : ''}`}
+                      onClick={() => handlePageChange(pageNum)}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <button 
+                className="pagination-btn"
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={!pagination.has_next}
+                title="Próxima página"
+              >
+                »
+              </button>
+              
+              <button 
+                className="pagination-btn"
+                onClick={() => handlePageChange(pagination.total_pages)}
+                disabled={!pagination.has_next}
+                title="Última página"
+              >
+                »»
+              </button>
+            </div>
+          </div>
+        )}
+
+        <CadastrarPergunta
+          isOpen={isCadastroModalOpen}
+          onClose={() => setIsCadastroModalOpen(false)}
+          onSuccess={handleCadastroSuccess}
+        />
+
+        {/* Modal de Visualização */}
+        {isVisualizarModalOpen && perguntaToView && (
+          <div className="modal-overlay">
+            <div className="modal-content pergunta-modal">
+              <div className="modal-header">
+                <h2>Detalhes da Pergunta</h2>
+                <button 
+                  className="btn-close" 
+                  onClick={handleCloseViewModal}
+                  title="Fechar"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="modal-body">
+                <div className="pergunta-details">
+                  <div className="detail-section">
+                    <h3>Informações Básicas</h3>
+                    <div className="detail-grid">
+                      <div className="detail-item">
+                        <label>ID:</label>
+                        <span>{perguntaToView.cod_questao}</span>
+                      </div>
+                      <div className="detail-item">
+                        <label>Status:</label>
+                        <span className={`badge ${perguntaToView.status === 'Ativo' ? 'badge-ativo' : 'badge-inativo'}`}>
+                          {perguntaToView.status}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <label>Tipo:</label>
+                        <span className={`badge ${getTipoBadgeColor(perguntaToView.tipo_questao)}`}>
+                          {perguntaToView.tipo_questao}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="detail-section">
+                    <h3>Texto da Pergunta</h3>
+                    <div className="pergunta-texto">
+                      <p>{perguntaToView.texto_questao}</p>
+                    </div>
+                  </div>
+
+                  {perguntaToView.tipo_questao === 'Múltipla Escolha' && perguntaToView.opcoes && perguntaToView.opcoes.length > 0 && (
+                    <div className="detail-section">
+                      <h3>Opções de Resposta</h3>
+                      <div className="opcoes-list">
+                        {perguntaToView.opcoes.map((opcao, index) => (
+                          <div key={index} className="opcao-item">
+                            <span className="opcao-number">{index + 1}.</span>
+                            <span className="opcao-text">{opcao}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="modal-footer">
+                <button 
+                  className="btn-secondary" 
+                  onClick={handleCloseViewModal}
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

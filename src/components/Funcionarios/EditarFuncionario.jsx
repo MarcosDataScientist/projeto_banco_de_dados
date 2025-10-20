@@ -67,7 +67,18 @@ function EditarFuncionario() {
     
     try {
       setLoading(true)
-      await api.atualizarFuncionario(id, funcionario)
+      
+      // Enviar apenas os campos editáveis (sem CPF)
+      const dadosParaEnvio = {
+        nome: funcionario.nome,
+        email: funcionario.email,
+        setor: funcionario.setor,
+        tipo: funcionario.tipo,
+        ctps: funcionario.ctps,
+        status: funcionario.status
+      }
+      
+      await api.atualizarFuncionario(id, dadosParaEnvio)
       alert('Funcionário atualizado com sucesso!')
       navigate('/funcionarios')
     } catch (err) {
