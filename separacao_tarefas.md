@@ -15,12 +15,10 @@ Módulo: Avaliadores
 
 [ ] Implementar CRUD para certificados
 
-<<<<<<< HEAD
 
-## Módulo: Formulários (Questionários)
-=======
+
 Módulo: Formulários (Questionários)
->>>>>>> 362e22b (Realizadas as implementacoes de insercao, delecao e visualizacao de funcionarios e perguntas. Inserido tambem a paginacao da visualizacao para o front ficar mais suave e agradavel.)
+
 [X] Criar: Desenvolver o formulário para a criação de novos formulários/questionários.
 
 [X] Editar: Desenvolver o formulário para a edição de formulários/questionários existentes.
@@ -76,8 +74,7 @@ OBS [ ] CRIAÇÃO TABELA DEPARTAMENTOS
 
 OBS [ ] TIPO DE CONTRATO DO FUNCIONARIO VAI PARA TIPO DE AVALIAÇÃO
 
-PENTE FINO [ ] MODAL DE EDIÇÃO DE FUNCIONARIO
->>>>>>> 362e22b (Realizadas as implementacoes de insercao, delecao e visualizacao de funcionarios e perguntas. Inserido tambem a paginacao da visualizacao para o front ficar mais suave e agradavel.)
+PENTE FINO [ ] MODAL DE EDIÇÃO DE FUNCIONA
 
 Módulo: Perguntas
 [ ]
