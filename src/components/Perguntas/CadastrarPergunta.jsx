@@ -1,271 +1,293 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { SaveIcon, XIcon, PlusIcon, DeleteIcon } from '../common/Icons'
+import React, { useState, useEffect } from 'react'
+import { XIcon, QuestionIcon, TagIcon, ToggleIcon, CheckIcon } from '../common/Icons'
+import api from '../../services/api'
 
-function CadastrarPergunta() {
-  const navigate = useNavigate()
-  
-  const [pergunta, setPergunta] = useState({
+function CadastrarPergunta({ isOpen, onClose, onSuccess }) {
+  const [formData, setFormData] = useState({
     texto: '',
-    categoria: '',
-    tipo: 'multipla_escolha',
-    opcoes: ['', ''],
-    ativa: true
+    tipo: 'Múltipla Escolha', // Default value
+    status: 'Ativo', // Default value
+    opcoes: ['', '', '', ''] // 4 opções padrão para múltipla escolha
   })
+  const [categorias, setCategorias] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState({})
 
-  const handleChange = (e) => {
+  useEffect(() => {
+    if (isOpen) {
+      carregarCategorias()
+    }
+  }, [isOpen])
+
+  const carregarCategorias = async () => {
+    try {
+      const categoriasData = await api.getCategorias()
+      setCategorias(categoriasData)
+    } catch (err) {
+      console.error('Erro ao carregar categorias:', err)
+    }
+  }
+
+  const handleInputChange = (e) => {
     const { name, value } = e.target
-    setPergunta(prev => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value
     }))
+    
+    // Limpar erro do campo
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }))
+    }
   }
 
-  const handleTipoChange = (e) => {
-    const tipo = e.target.value
-    setPergunta(prev => ({
+  const handleOpcaoChange = (index, value) => {
+    const novasOpcoes = [...formData.opcoes]
+    novasOpcoes[index] = value
+    setFormData(prev => ({
       ...prev,
-      tipo,
-      opcoes: tipo === 'multipla_escolha' ? ['', ''] : []
+      opcoes: novasOpcoes
     }))
   }
 
-  const addOpcao = () => {
-    setPergunta(prev => ({
-      ...prev,
-      opcoes: [...prev.opcoes, '']
-    }))
+  const adicionarOpcao = () => {
+    if (formData.opcoes.length < 6) { // Máximo 6 opções
+      setFormData(prev => ({
+        ...prev,
+        opcoes: [...prev.opcoes, '']
+      }))
+    }
   }
 
-  const removeOpcao = (index) => {
-    setPergunta(prev => ({
-      ...prev,
-      opcoes: prev.opcoes.filter((_, i) => i !== index)
-    }))
+  const removerOpcao = (index) => {
+    if (formData.opcoes.length > 2) { // Mínimo 2 opções
+      const novasOpcoes = formData.opcoes.filter((_, i) => i !== index)
+      setFormData(prev => ({
+        ...prev,
+        opcoes: novasOpcoes
+      }))
+    }
   }
 
-  const updateOpcao = (index, value) => {
-    setPergunta(prev => ({
-      ...prev,
-      opcoes: prev.opcoes.map((opcao, i) => i === index ? value : opcao)
-    }))
+  const validateForm = () => {
+    const newErrors = {}
+
+    if (!formData.texto.trim()) {
+      newErrors.texto = 'Texto da pergunta é obrigatório'
+    } else if (formData.texto.trim().length < 10) {
+      newErrors.texto = 'Texto deve ter pelo menos 10 caracteres'
+    }
+
+    if (!formData.tipo) {
+      newErrors.tipo = 'Tipo da pergunta é obrigatório'
+    }
+
+    if (formData.tipo === 'Múltipla Escolha') {
+      const opcoesValidas = formData.opcoes.filter(opcao => opcao.trim() !== '')
+      if (opcoesValidas.length < 2) {
+        newErrors.opcoes = 'Múltipla escolha deve ter pelo menos 2 opções'
+      }
+      
+      // Verificar se há opções duplicadas
+      const opcoesUnicas = [...new Set(opcoesValidas)]
+      if (opcoesUnicas.length !== opcoesValidas.length) {
+        newErrors.opcoes = 'Não é possível ter opções duplicadas'
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     
-    // Validação básica
-    if (!pergunta.texto.trim()) {
-      alert('Por favor, digite o texto da pergunta')
+    if (!validateForm()) {
       return
     }
-    
-    if (!pergunta.categoria.trim()) {
-      alert('Por favor, selecione uma categoria')
-      return
+
+    try {
+      setLoading(true)
+      
+      const dadosParaEnvio = {
+        texto: formData.texto.trim(),
+        tipo: formData.tipo,
+        status: formData.status
+      }
+
+      // Se for múltipla escolha, incluir opções válidas
+      if (formData.tipo === 'Múltipla Escolha') {
+        const opcoesValidas = formData.opcoes.filter(opcao => opcao.trim() !== '')
+        dadosParaEnvio.opcoes = opcoesValidas
+      }
+
+      await api.criarPergunta(dadosParaEnvio)
+      
+      // Resetar formulário
+      setFormData({
+        texto: '',
+        tipo: 'Múltipla Escolha',
+        status: 'Ativo',
+        opcoes: ['', '', '', '']
+      })
+      setErrors({})
+      
+      onSuccess()
+      onClose()
+      
+    } catch (err) {
+      console.error('Erro ao cadastrar pergunta:', err)
+      alert('Erro ao cadastrar pergunta. Tente novamente.')
+    } finally {
+      setLoading(false)
     }
-    
-    if (pergunta.tipo === 'multipla_escolha' && pergunta.opcoes.some(op => !op.trim())) {
-      alert('Por favor, preencha todas as opções de múltipla escolha')
-      return
-    }
-    
-    // Aqui você faria o envio dos dados para o backend
-    console.log('Pergunta cadastrada:', pergunta)
-    
-    // Redirecionar de volta para a lista
-    navigate('/perguntas')
   }
 
-  const handleCancel = () => {
-    navigate('/perguntas')
+  const handleClose = () => {
+    setFormData({
+      texto: '',
+      tipo: 'Múltipla Escolha',
+      status: 'Ativo',
+      opcoes: ['', '', '', '']
+    })
+    setErrors({})
+    onClose()
   }
 
-  const renderOpcoesMultiplaEscolha = () => {
-    if (pergunta.tipo !== 'multipla_escolha') return null
-
-    return (
-      <div className="form-group">
-        <label className="form-label">
-          Opções de Resposta <span className="required">*</span>
-        </label>
-        <div className="opcoes-container">
-          {pergunta.opcoes.map((opcao, index) => (
-            <div key={index} className="opcao-item">
-              <input
-                type="text"
-                value={opcao}
-                onChange={(e) => updateOpcao(index, e.target.value)}
-                className="form-input opcao-input"
-                placeholder={`Opção ${index + 1}`}
-              />
-              {pergunta.opcoes.length > 2 && (
-                <button
-                  type="button"
-                  onClick={() => removeOpcao(index)}
-                  className="btn-remove-opcao"
-                >
-                  <DeleteIcon />
-                </button>
-              )}
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={addOpcao}
-            className="btn-add-opcao"
-          >
-            <PlusIcon /> Adicionar Opção
-          </button>
-        </div>
-      </div>
-    )
-  }
+  if (!isOpen) return null
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h2>Cadastrar Nova Pergunta</h2>
-        <p>Adicione uma nova pergunta ao sistema de avaliação</p>
-      </div>
-
-      <div className="form-container">
-        <div className="form-card">
-          <form onSubmit={handleSubmit} className="pergunta-form">
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="texto" className="form-label">
-                  Texto da Pergunta <span className="required">*</span>
-                </label>
-                <textarea
-                  id="texto"
-                  name="texto"
-                  value={pergunta.texto}
-                  onChange={handleChange}
-                  className="form-textarea"
-                  placeholder="Digite a pergunta aqui..."
-                  rows="4"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="categoria" className="form-label">
-                  Categoria <span className="required">*</span>
-                </label>
-                <select
-                  id="categoria"
-                  name="categoria"
-                  value={pergunta.categoria}
-                  onChange={handleChange}
-                  className="form-select"
-                  required
-                >
-                  <option value="">Selecione uma categoria</option>
-                  <option value="Ambiente">Ambiente</option>
-                  <option value="Saída">Saída</option>
-                  <option value="Recomendação">Recomendação</option>
-                  <option value="Geral">Geral</option>
-                  <option value="Satisfação">Satisfação</option>
-                  <option value="Gestão">Gestão</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="tipo" className="form-label">
-                  Tipo de Pergunta <span className="required">*</span>
-                </label>
-                <select
-                  id="tipo"
-                  name="tipo"
-                  value={pergunta.tipo}
-                  onChange={handleTipoChange}
-                  className="form-select"
-                  required
-                >
-                  <option value="multipla_escolha">Múltipla Escolha</option>
-                  <option value="sim_nao">Sim/Não</option>
-                  <option value="texto">Texto Livre</option>
-                </select>
-              </div>
-            </div>
-
-            {renderOpcoesMultiplaEscolha()}
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Status da Pergunta</label>
-                <div className="toggle-container">
-                  <label className="toggle-switch">
-                    <input
-                      type="checkbox"
-                      checked={pergunta.ativa}
-                      onChange={(e) => setPergunta(prev => ({ ...prev, ativa: e.target.checked }))}
-                    />
-                    <span className="toggle-slider"></span>
-                  </label>
-                  <span className="toggle-label">
-                    {pergunta.ativa ? 'Pergunta ativa' : 'Pergunta inativa'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Preview da Pergunta */}
-            <div className="form-group">
-              <label className="form-label">Preview da Pergunta</label>
-              <div className="pergunta-preview">
-                <div className="preview-header">
-                  <h4>{pergunta.texto || 'Texto da pergunta aparecerá aqui...'}</h4>
-                  <span className="preview-badge">{pergunta.categoria || 'Categoria'}</span>
-                </div>
-                <div className="preview-body">
-                  {pergunta.tipo === 'multipla_escolha' && (
-                    <div className="preview-opcoes">
-                      {pergunta.opcoes.map((opcao, index) => (
-                        <label key={index} className="preview-option">
-                          <input type="radio" name="preview" disabled />
-                          <span>{opcao || `Opção ${index + 1}`}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                  {pergunta.tipo === 'sim_nao' && (
-                    <div className="preview-opcoes">
-                      <label className="preview-option">
-                        <input type="radio" name="preview" disabled />
-                        <span>Sim</span>
-                      </label>
-                      <label className="preview-option">
-                        <input type="radio" name="preview" disabled />
-                        <span>Não</span>
-                      </label>
-                    </div>
-                  )}
-                  {pergunta.tipo === 'texto' && (
-                    <textarea
-                      className="preview-textarea"
-                      placeholder="Resposta em texto livre aparecerá aqui..."
-                      disabled
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="form-actions">
-              <button type="button" onClick={handleCancel} className="btn-cancel">
-                <XIcon /> Cancelar
-              </button>
-              <button type="submit" className="btn-save">
-                <SaveIcon /> Salvar Pergunta
-              </button>
-            </div>
-          </form>
+    <div className="modal-overlay">
+      <div className="modal-container">
+        <div className="modal-header">
+          <h2 className="modal-title">
+            <QuestionIcon /> Nova Pergunta
+          </h2>
+          <button 
+            className="modal-close"
+            onClick={handleClose}
+          >
+            <XIcon />
+          </button>
         </div>
+        
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="form-group">
+            <label htmlFor="texto" className="form-label">
+              <QuestionIcon /> Texto da Pergunta *
+            </label>
+            <textarea
+              id="texto"
+              name="texto"
+              value={formData.texto}
+              onChange={handleInputChange}
+              className={`form-input ${errors.texto ? 'error' : ''}`}
+              placeholder="Digite o texto da pergunta..."
+              rows={4}
+              required
+            />
+            {errors.texto && <span className="error-message">{errors.texto}</span>}
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="tipo" className="form-label">
+                <TagIcon /> Tipo da Pergunta *
+              </label>
+              <select
+                id="tipo"
+                name="tipo"
+                value={formData.tipo}
+                onChange={handleInputChange}
+                className={`form-input ${errors.tipo ? 'error' : ''}`}
+                required
+              >
+                <option value="Múltipla Escolha">Múltipla Escolha</option>
+                <option value="Texto Livre">Texto Livre</option>
+              </select>
+              {errors.tipo && <span className="error-message">{errors.tipo}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="status" className="form-label">
+                <ToggleIcon /> Status
+              </label>
+              <select
+                id="status"
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+                className="form-input"
+              >
+                <option value="Ativo">Ativo</option>
+                <option value="Inativo">Inativo</option>
+              </select>
+            </div>
+          </div>
+
+          {formData.tipo === 'Múltipla Escolha' && (
+            <div className="form-group">
+              <label className="form-label">
+                <CheckIcon /> Opções de Resposta *
+              </label>
+              <div className="opcoes-container">
+                {formData.opcoes.map((opcao, index) => (
+                  <div key={index} className="opcao-item">
+                    <input
+                      type="text"
+                      value={opcao}
+                      onChange={(e) => handleOpcaoChange(index, e.target.value)}
+                      className="form-input opcao-input"
+                      placeholder={`Opção ${index + 1}`}
+                    />
+                    {formData.opcoes.length > 2 && (
+                      <button
+                        type="button"
+                        className="btn-remove-opcao"
+                        onClick={() => removerOpcao(index)}
+                        title="Remover opção"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+                
+                {formData.opcoes.length < 6 && (
+                  <button
+                    type="button"
+                    className="btn-add-opcao"
+                    onClick={adicionarOpcao}
+                  >
+                    + Adicionar Opção
+                  </button>
+                )}
+              </div>
+              {errors.opcoes && <span className="error-message">{errors.opcoes}</span>}
+            </div>
+          )}
+
+          <div className="modal-footer">
+            <button 
+              type="button" 
+              className="btn-secondary"
+              onClick={handleClose}
+              disabled={loading}
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit" 
+              className="btn-primary"
+              disabled={loading}
+            >
+              {loading ? 'Cadastrando...' : 'Cadastrar Pergunta'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )

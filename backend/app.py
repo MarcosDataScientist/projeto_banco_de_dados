@@ -85,7 +85,7 @@ def get_atividades_recentes():
 
 @app.route('/api/perguntas', methods=['GET'])
 def get_perguntas():
-    """Lista todas as perguntas"""
+    """Lista todas as perguntas com paginação"""
     try:
         categoria = request.args.get('categoria', type=int)
         ativa_param = request.args.get('ativa')
@@ -95,8 +95,42 @@ def get_perguntas():
         if ativa_param is not None:
             status = 'Ativo' if ativa_param.lower() == 'true' else 'Inativo'
         
-        perguntas = PerguntasModel.listar_todas(categoria, status)
-        return jsonify(perguntas), 200
+        # Parâmetros de paginação
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        
+        # Validar parâmetros
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 10
+        
+        # Buscar perguntas com paginação
+        perguntas, total = PerguntasModel.listar_com_paginacao(
+            filtro_tipo=None,  # Não filtrar por tipo por enquanto
+            filtro_status=status, 
+            page=page, 
+            per_page=per_page
+        )
+        
+        # Calcular informações de paginação
+        total_pages = (total + per_page - 1) // per_page  # Ceiling division
+        has_prev = page > 1
+        has_next = page < total_pages
+        
+        return jsonify({
+            'perguntas': perguntas,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total,
+                'total_pages': total_pages,
+                'has_prev': has_prev,
+                'has_next': has_next,
+                'prev_page': page - 1 if has_prev else None,
+                'next_page': page + 1 if has_next else None
+            }
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -127,9 +161,9 @@ def criar_pergunta():
         
         pergunta = PerguntasModel.criar(
             data['texto'],
-            data.get('categoria_id'),
             data['tipo'],
-            data.get('ativa', True)
+            data.get('status', 'Ativo'),
+            data.get('opcoes')
         )
         
         return jsonify(pergunta[0]), 201
@@ -141,11 +175,14 @@ def atualizar_pergunta(pergunta_id):
     """Atualiza uma pergunta"""
     try:
         data = request.get_json()
+        print(f"[DEBUG] Dados recebidos para atualização: {data}")
         
         # Compatibilidade com campos antigos e novos
         texto_questao = data.get('texto_questao') or data.get('texto')
         tipo_questao = data.get('tipo_questao') or data.get('tipo')
         status = data.get('status')
+        
+        print(f"[DEBUG] Campos mapeados - texto: {texto_questao}, tipo: {tipo_questao}, status: {status}")
         
         # Se não tem status mas tem 'ativa', converter
         if status is None and 'ativa' in data:
@@ -196,13 +233,47 @@ def get_categorias():
 
 @app.route('/api/funcionarios', methods=['GET'])
 def get_funcionarios():
-    """Lista todos os funcionários"""
+    """Lista todos os funcionários com paginação"""
     try:
         status = request.args.get('status')
         departamento = request.args.get('departamento', type=int)
         
-        funcionarios = FuncionariosModel.listar_todos(status, departamento)
-        return jsonify(funcionarios), 200
+        # Parâmetros de paginação
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Validar parâmetros
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 20
+        
+        # Buscar funcionários com paginação
+        funcionarios, total = FuncionariosModel.listar_com_paginacao(
+            filtro_status=status, 
+            filtro_setor=departamento, 
+            page=page, 
+            per_page=per_page
+        )
+        
+        # Calcular informações de paginação
+        total_pages = (total + per_page - 1) // per_page  # Ceiling division
+        has_prev = page > 1
+        has_next = page < total_pages
+        
+        return jsonify({
+            'funcionarios': funcionarios,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total,
+                'total_pages': total_pages,
+                'has_prev': has_prev,
+                'has_next': has_next,
+                'prev_page': page - 1 if has_prev else None,
+                'next_page': page + 1 if has_next else None
+            }
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -225,7 +296,7 @@ def criar_funcionario():
         data = request.get_json()
         
         # Validações
-        campos_obrigatorios = ['nome', 'cpf', 'email', 'departamento_id', 'cargo']
+        campos_obrigatorios = ['nome', 'cpf', 'email', 'setor']
         for campo in campos_obrigatorios:
             if not data.get(campo):
                 return jsonify({'error': f'{campo} é obrigatório'}), 400
@@ -234,10 +305,10 @@ def criar_funcionario():
             data['nome'],
             data['cpf'],
             data['email'],
-            data.get('setor', data.get('departamento_id')),  # Compatibilidade
+            data['setor'],
             data.get('ctps'),
-            data.get('tipo', data.get('cargo')),  # Compatibilidade
-            data.get('status', 'Ativo')
+            data.get('tipo', 'CLT'),
+            data.get('status', 'ativo')
         )
         
         return jsonify(funcionario[0]), 201
@@ -249,6 +320,10 @@ def atualizar_funcionario(funcionario_id):
     """Atualiza um funcionário por CPF"""
     try:
         data = request.get_json()
+        
+        # Remover CPF dos dados se estiver presente (para evitar conflito)
+        if 'cpf' in data:
+            del data['cpf']
         
         funcionario = FuncionariosModel.atualizar(funcionario_id, **data)
         
@@ -263,6 +338,16 @@ def atualizar_funcionario(funcionario_id):
 def deletar_funcionario(funcionario_id):
     """Deleta um funcionário por CPF"""
     try:
+        # Verificar se o funcionário tem avaliações
+        from backend.models.avaliacoes import AvaliacoesModel
+        avaliacoes = AvaliacoesModel.buscar_por_avaliador(funcionario_id)
+        
+        if avaliacoes:
+            return jsonify({
+                'error': 'Não é possível excluir este funcionário pois ele possui avaliações associadas',
+                'avaliacoes_count': len(avaliacoes)
+            }), 400
+        
         linhas = FuncionariosModel.deletar(funcionario_id)
         if linhas == 0:
             return jsonify({'error': 'Funcionário não encontrado'}), 404
@@ -603,7 +688,7 @@ def shutdown_session(exception=None):
     pass
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
+    port = int(os.getenv('PORT', 5001))
     debug = os.getenv('FLASK_ENV') == 'development'
     
     print("=" * 50)

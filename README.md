@@ -33,7 +33,7 @@ npm install
 ```bash
 python run.py
 ```
-O servidor Flask estará rodando em `http://localhost:5000`
+O servidor Flask estará rodando em `http://localhost:5001`
 
 2. **Iniciar o frontend React** (Terminal 2):
 ```bash

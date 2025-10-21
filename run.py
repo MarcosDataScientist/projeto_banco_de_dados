@@ -8,7 +8,7 @@ if current_dir not in sys.path:
 from backend.app import app, Database
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
+    port = int(os.getenv('PORT', 5001))
     debug = os.getenv('FLASK_ENV') == 'development'
     
     print("=" * 50)
