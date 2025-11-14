@@ -1,7 +1,27 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { SaveIcon, XIcon, UserIcon } from '../common/Icons'
+import Toast from '../common/Toast'
 import api from '../../services/api'
+
+const STATUS_OPTIONS = [
+  { value: 'Ativo', label: 'ATIVO' },
+  { value: 'Inativo', label: 'INATIVO' },
+  { value: 'Processo de Saída', label: 'PROCESSO DE SAÍDA' },
+  { value: 'Desligado', label: 'DESLIGADO' }
+]
+
+const formatStatusValue = (status) => {
+  if (!status) return STATUS_OPTIONS[0].value
+  const normalized = status.toString().trim().toLowerCase()
+  const map = {
+    ativo: 'Ativo',
+    inativo: 'Inativo',
+    'processo de saída': 'Processo de Saída',
+    desligado: 'Desligado'
+  }
+  return map[normalized] || status
+}
 
 function EditarFuncionario() {
   const { id } = useParams() // id aqui é o CPF
@@ -14,11 +34,17 @@ function EditarFuncionario() {
     setor: '',
     tipo: '',
     ctps: '',
-    status: 'Ativo'
+    status: STATUS_OPTIONS[0].value
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [setores, setSetores] = useState([])
+  const [toast, setToast] = useState({
+    show: false,
+    type: 'success',
+    title: '',
+    message: ''
+  })
 
   useEffect(() => {
     carregarDados()
@@ -42,7 +68,7 @@ function EditarFuncionario() {
         setor: funcionarioData.setor || '',
         tipo: funcionarioData.tipo || '',
         ctps: funcionarioData.ctps || '',
-        status: funcionarioData.status || 'Ativo'
+        status: formatStatusValue(funcionarioData.status)
       })
 
       setSetores(setoresData)
@@ -74,16 +100,20 @@ function EditarFuncionario() {
         email: funcionario.email,
         setor: funcionario.setor,
         tipo: funcionario.tipo,
-        ctps: funcionario.ctps,
+        ctps: funcionario.ctps || null,
         status: funcionario.status
       }
       
       await api.atualizarFuncionario(id, dadosParaEnvio)
-      alert('Funcionário atualizado com sucesso!')
-      navigate('/funcionarios')
+      setToast({ show: true, type: 'success', title: 'Funcionário atualizado!', message: 'As alterações foram salvas com sucesso.' })
+      
+      // Aguardar um pouco para mostrar o toast antes de navegar
+      setTimeout(() => {
+        navigate('/funcionarios')
+      }, 1500)
     } catch (err) {
       console.error('Erro ao atualizar funcionário:', err)
-      alert('Erro ao atualizar funcionário. Tente novamente.')
+      setToast({ show: true, type: 'error', title: 'Erro ao atualizar', message: 'Não foi possível atualizar o funcionário. Tente novamente.' })
     } finally {
       setLoading(false)
     }
@@ -227,10 +257,10 @@ function EditarFuncionario() {
                     className="form-select"
                     required
                   >
-                    <option value="">Selecione um setor</option>
-                    {setores.map((setor) => (
-                      <option key={setor.nome} value={setor.nome}>
-                        {setor.nome}
+                    <option value="">Selecione um departamento</option>
+                    {setores.map((dept) => (
+                      <option key={dept.cod_departamento || dept.nome} value={dept.nome}>
+                        {dept.nome}
                       </option>
                     ))}
                   </select>
@@ -277,9 +307,11 @@ function EditarFuncionario() {
                   className="form-select"
                   required
                 >
-                  <option value="Ativo">Ativo</option>
-                  <option value="Processo de Saída">Processo de Saída</option>
-                  <option value="Desligado">Desligado</option>
+                  {STATUS_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -296,6 +328,16 @@ function EditarFuncionario() {
           </form>
         </div>
       </div>
+
+      {/* Toast para mensagens de sucesso/erro */}
+      <Toast
+        show={toast.show}
+        onClose={() => setToast(prev => ({ ...prev, show: false }))}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        duration={5000}
+      />
     </div>
   )
 }

@@ -25,31 +25,34 @@ Módulo: Formulários (Questionários)
 
 [X] Deletar: Implementar a funcionalidade de deleção de formulários/questionários.
 
+
 Parte: Lucas
 
 
 Módulo: Funcionários
-[ ] Criar: Desenvolver o formulário de cadastro para um novo funcionário.
+[x] Criar: Desenvolver o formulário de cadastro para um novo funcionário.
 
-[ ] Corrigir: Investigar e resolver o erro no formulário de atualização de funcionário.
+[x] Corrigir: Investigar e resolver o erro no formulário de atualização de funcionário.
 
-[ ] Melhorar: Implementar a paginação na lista de funcionários para melhor performance e usabilidade.
+[x] Melhorar: Implementar a paginação na lista de funcionários para melhor performance e usabilidade.
 
-[ ] Colocar confirmação na exclusão
+[x] Colocar confirmação na exclusão
 
-[ ] Colocar status inativo
-<<<<<<< HEAD
+[x] Implementar busca de funcionario (LUPA)
 
-[ ] Implementar toast para exclusão e adição
+[x] Colocar status inativo
 
-OBS [ ] CRIAÇÃO TABELA DEPARTAMENTOS
+
+[x] Implementar toast para exclusão e adição
+
+OBS [x] CRIAÇÃO TABELA DEPARTAMENTOS
 
 OBS [ ] TIPO DE CONTRATO DO FUNCIONARIO VAI PARA TIPO DE AVALIAÇÃO
 
 PENTE FINO [ ] MODAL DE EDIÇÃO DE FUNCIONARIO 
 
 ## Módulo: Perguntas
-[ ]
+
 
 [X] Corrigir: Investigar e resolver o erro que ocorre ao atualizar uma pergunta.
 
@@ -66,11 +69,12 @@ PENTE FINO [ ] MODAL DE EDIÇÃO DE FUNCIONARIO
 [ ] OCULTAR O ID DA LISTAGEM DE PERGUNTAS
 
 [ ] LISTAGEM DE PERGUNTAS ALTERAR ICONES
-=======
+
+=============================================================================================================================
 
 [ ] Implementar toast para exclusão e adição
 
-OBS [ ] CRIAÇÃO TABELA DEPARTAMENTOS
+
 
 OBS [ ] TIPO DE CONTRATO DO FUNCIONARIO VAI PARA TIPO DE AVALIAÇÃO
 
@@ -100,3 +104,7 @@ Módulo: Avaliação
 [ ] Criar Interface: Desenvolver a interface que unifique a seleção de avaliador e questionário para aplicar a avaliação.
 
 [ ] Validar Unicidade: Garantir que um mesmo questionário só possa ser aplicado uma única vez para cada funcionário.
+
+[ ] LOG-IN USUARIO E SENHA PARA ADMINISTRADORES CONTROLAREM A PLATAFORMA
+
+[ ] INCLUIR NO SCHEMA DRAW IO A NOVA ENTIDADE DEPARTAMENTO E SEU RELACIONAMENTO COM FUNCIONARIO
