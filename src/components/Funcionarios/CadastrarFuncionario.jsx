@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { XIcon, UserIcon, MailIcon, BuildingIcon, IdCardIcon, TagIcon } from '../common/Icons'
+import Toast from '../common/Toast'
 import api from '../../services/api'
 
 function CadastrarFuncionario({ isOpen, onClose, onSuccess }) {
@@ -14,6 +15,12 @@ function CadastrarFuncionario({ isOpen, onClose, onSuccess }) {
   })
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
+  const [toast, setToast] = useState({
+    show: false,
+    type: 'error',
+    title: '',
+    message: ''
+  })
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -71,9 +78,15 @@ function CadastrarFuncionario({ isOpen, onClose, onSuccess }) {
       // Limpar CPF (remover pontos e traços)
       const cpfLimpo = formData.cpf.replace(/\D/g, '')
       
+      // Preparar dados para envio
       const dadosFuncionario = {
-        ...formData,
-        cpf: cpfLimpo
+        nome: formData.nome,
+        cpf: cpfLimpo,
+        email: formData.email,
+        setor: formData.setor,
+        ctps: formData.ctps || null,
+        tipo: formData.tipo,
+        status: formData.status ? formData.status.charAt(0).toUpperCase() + formData.status.slice(1).toLowerCase() : 'Ativo'
       }
       
       await api.cadastrarFuncionario(dadosFuncionario)
@@ -89,16 +102,37 @@ function CadastrarFuncionario({ isOpen, onClose, onSuccess }) {
         status: 'ativo'
       })
       
-      onSuccess?.()
-      onClose()
+      // Mostrar toast de sucesso
+      setToast({ 
+        show: true, 
+        type: 'success', 
+        title: 'Funcionário cadastrado!', 
+        message: 'O funcionário foi cadastrado com sucesso.' 
+      })
+      
+      // Aguardar um pouco para mostrar o toast antes de fechar
+      setTimeout(() => {
+        onSuccess?.()
+        onClose()
+      }, 1500)
       
     } catch (error) {
       console.error('Erro ao cadastrar funcionário:', error)
       
       if (error.response?.data?.message) {
-        alert(error.response.data.message)
+        setToast({ 
+          show: true, 
+          type: 'error', 
+          title: 'Erro ao cadastrar', 
+          message: error.response.data.message 
+        })
       } else {
-        alert('Erro ao cadastrar funcionário. Tente novamente.')
+        setToast({ 
+          show: true, 
+          type: 'error', 
+          title: 'Erro ao cadastrar', 
+          message: 'Não foi possível cadastrar o funcionário. Tente novamente.' 
+        })
       }
     } finally {
       setLoading(false)
@@ -198,9 +232,10 @@ function CadastrarFuncionario({ isOpen, onClose, onSuccess }) {
                 name="setor"
                 value={formData.setor}
                 onChange={handleInputChange}
-                placeholder="Ex: Recursos Humanos, TI, Vendas"
+                placeholder="Digite o setor ou departamento"
                 className={`form-input ${errors.setor ? 'error' : ''}`}
                 disabled={loading}
+                maxLength={100}
               />
               {errors.setor && <span className="error-message">{errors.setor}</span>}
             </div>
@@ -260,6 +295,16 @@ function CadastrarFuncionario({ isOpen, onClose, onSuccess }) {
           </div>
         </form>
       </div>
+
+      {/* Toast para mensagens de erro */}
+      <Toast
+        show={toast.show}
+        onClose={() => setToast(prev => ({ ...prev, show: false }))}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        duration={5000}
+      />
     </div>
   )
 }

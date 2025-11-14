@@ -8,6 +8,7 @@
 -- ==========================================
 -- TABELAS PRINCIPAIS
 -- ==========================================
+-- Tabela de Departamentos
 
 -- Tabela de Funcionários
 CREATE TABLE IF NOT EXISTS Funcionario (

@@ -61,21 +61,24 @@ class ApiService {
   // FUNCIONÁRIOS
   // ==========================================
 
-  async getFuncionarios(status = null, departamento = null, page = 1, per_page = 20) {
+  async getFuncionarios(status = null, departamento = null, page = 1, per_page = 20, busca = null) {
     let query = ''
     const params = []
     
     if (status) {
-      params.push(`status=${status}`)
+      params.push(`status=${encodeURIComponent(status)}`)
     }
     if (departamento) {
-      params.push(`departamento=${departamento}`)
+      params.push(`departamento=${encodeURIComponent(departamento)}`)
     }
     if (page) {
-      params.push(`page=${page}`)
+      params.push(`page=${encodeURIComponent(page)}`)
     }
     if (per_page) {
-      params.push(`per_page=${per_page}`)
+      params.push(`per_page=${encodeURIComponent(per_page)}`)
+    }
+    if (busca) {
+      params.push(`q=${encodeURIComponent(busca)}`)
     }
     
     if (params.length > 0) {
@@ -121,6 +124,14 @@ class ApiService {
 
   async getDepartamentos() {
     return this.request('/departamentos')
+  }
+
+  async getTotalFuncionarios() {
+    return this.request('/funcionarios/total')
+  }
+
+  async getEstatisticasFuncionarios() {
+    return this.request('/funcionarios/estatisticas')
   }
 
   // ==========================================

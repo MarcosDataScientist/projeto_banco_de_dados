@@ -236,7 +236,11 @@ def get_funcionarios():
     """Lista todos os funcionários com paginação"""
     try:
         status = request.args.get('status')
-        departamento = request.args.get('departamento', type=int)
+        departamento = request.args.get('departamento')  # Agora é string (nome do setor)
+        busca = request.args.get('q')
+        
+        # Debug: log dos parâmetros recebidos
+        print(f"[DEBUG] Parâmetros recebidos - status: {status}, departamento: {departamento}, busca: {busca}")
         
         # Parâmetros de paginação
         page = request.args.get('page', 1, type=int)
@@ -249,12 +253,16 @@ def get_funcionarios():
             per_page = 20
         
         # Buscar funcionários com paginação
+        # departamento aqui é um nome de setor (string), usar filtro_setor
         funcionarios, total = FuncionariosModel.listar_com_paginacao(
             filtro_status=status, 
-            filtro_setor=departamento, 
+            filtro_setor=departamento,
+            filtro_busca=busca,
             page=page, 
             per_page=per_page
         )
+        
+        print(f"[DEBUG] Resultados encontrados: {len(funcionarios)} funcionários de {total} total")
         
         # Calcular informações de paginação
         total_pages = (total + per_page - 1) // per_page  # Ceiling division
@@ -277,6 +285,24 @@ def get_funcionarios():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/funcionarios/total', methods=['GET'])
+def get_total_funcionarios():
+    """Retorna o total geral de funcionários no sistema"""
+    try:
+        total = FuncionariosModel.contar_total_geral()
+        return jsonify({'total': total}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/funcionarios/estatisticas', methods=['GET'])
+def get_estatisticas_funcionarios():
+    """Retorna estatísticas gerais: total geral, total ativo e total em processo"""
+    try:
+        estatisticas = FuncionariosModel.contar_estatisticas_gerais()
+        return jsonify(estatisticas), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/funcionarios/<funcionario_id>', methods=['GET'])
 def get_funcionario(funcionario_id):
     """Busca um funcionário específico por CPF"""
@@ -296,7 +322,7 @@ def criar_funcionario():
         data = request.get_json()
         
         # Validações
-        campos_obrigatorios = ['nome', 'cpf', 'email', 'setor']
+        campos_obrigatorios = ['nome', 'cpf', 'email']
         for campo in campos_obrigatorios:
             if not data.get(campo):
                 return jsonify({'error': f'{campo} é obrigatório'}), 400
@@ -305,10 +331,10 @@ def criar_funcionario():
             data['nome'],
             data['cpf'],
             data['email'],
-            data['setor'],
-            data.get('ctps'),
-            data.get('tipo', 'CLT'),
-            data.get('status', 'ativo')
+            setor=data.get('setor'),
+            ctps=data.get('ctps'),
+            tipo=data.get('tipo', 'CLT'),
+            status=data.get('status', 'Ativo')
         )
         
         return jsonify(funcionario[0]), 201
