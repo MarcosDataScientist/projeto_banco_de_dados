@@ -365,7 +365,6 @@ def deletar_funcionario(funcionario_id):
     """Deleta um funcionário por CPF"""
     try:
         # Verificar se o funcionário tem avaliações
-        from backend.models.avaliacoes import AvaliacoesModel
         avaliacoes = AvaliacoesModel.buscar_por_avaliador(funcionario_id)
         
         if avaliacoes:
@@ -726,7 +725,8 @@ if __name__ == '__main__':
     print("=" * 50)
     
     try:
-        app.run(host='0.0.0.0', port=port, debug=debug)
+        host = os.getenv('FLASK_HOST', '0.0.0.0')
+        app.run(host=host, port=port, debug=debug)
     finally:
         Database.close_all_connections()
 

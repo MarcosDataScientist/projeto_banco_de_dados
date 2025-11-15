@@ -1,9 +1,16 @@
 import sys
 import os
+from dotenv import load_dotenv
 
+# Carregar variáveis de ambiente do .env na raiz
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(project_root, '.env'))
+
+# Adicionar a raiz do projeto ao path do Python
 current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
+
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from backend.app import app, Database
 
@@ -20,7 +27,8 @@ if __name__ == '__main__':
     print("=" * 50)
     
     try:
-        app.run(host='0.0.0.0', port=port, debug=debug)
+        host = os.getenv('FLASK_HOST', '0.0.0.0')
+        app.run(host=host, port=port, debug=debug)
     finally:
         Database.close_all_connections()
 

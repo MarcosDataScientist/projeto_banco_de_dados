@@ -1,4 +1,4 @@
-from ..config.database import Database
+from backend.config.database import Database
 
 class AvaliadoresModel:
     @staticmethod
