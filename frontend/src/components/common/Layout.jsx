@@ -12,8 +12,13 @@ function Layout() {
     const path = location.pathname.substring(1) // Remove a barra inicial
     if (path === '' || path === 'dashboard') {
       setCurrentPage('dashboard')
+    } else if (path.startsWith('avaliacoes')) {
+      // Se for uma rota de avaliações (incluindo subrotas), usar 'avaliacoes'
+      setCurrentPage('avaliacoes')
     } else {
-      setCurrentPage(path)
+      // Pegar apenas a primeira parte da rota para o menu
+      const firstPart = path.split('/')[0]
+      setCurrentPage(firstPart)
     }
   }, [location])
 

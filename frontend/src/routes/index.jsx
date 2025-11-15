@@ -6,6 +6,8 @@ import Home from '../components/Home'
 import Perguntas from '../components/Perguntas'
 import Questionarios from '../components/Questionarios/Questionarios'
 import Funcionarios from '../components/Funcionarios'
+import Avaliacao from '../components/Avaliacao/Avaliacao'
+import NovaAvaliacao from '../components/Avaliacao/NovaAvaliacao'
 import Relatorios from '../components/Relatorios'
 import Configuracoes from '../components/Configuracoes'
 import NotFound from '../components/NotFound'
@@ -22,6 +24,8 @@ const AppRoutes = () => {
         <Route path="perguntas" element={<Perguntas />} />
         <Route path="questionarios" element={<Questionarios />} />
         <Route path="funcionarios" element={<Funcionarios />} />
+        <Route path="avaliacoes" element={<Avaliacao />} />
+        <Route path="avaliacoes/nova" element={<NovaAvaliacao />} />
         <Route path="relatorios" element={<Relatorios />} />
         <Route path="configuracoes" element={<Configuracoes />} />
         <Route path="*" element={<NotFound />} />

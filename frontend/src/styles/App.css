@@ -1007,6 +1007,7 @@ body {
 .btn-preview:hover { background: #ff9800; border-color: #f57c00; }
 .btn-download:hover { background: #9c27b0; border-color: #7b1fa2; }
 .btn-delete:hover { background: #f44336; border-color: #d32f2f; }
+.btn-complete:hover { background: #10b981; border-color: #059669; }
 
 /* Modern Table Styles */
 .table-container {

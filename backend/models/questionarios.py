@@ -120,7 +120,20 @@ class QuestionariosModel:
                         cursor.execute(opcoes_query, (pergunta['id'],))
                         opcoes_row = cursor.fetchone()
                         if opcoes_row and opcoes_row[0]:
-                            pergunta['opcoes'] = opcoes_row[0]
+                            # opcoes_row[0] já vem como dict/list do psycopg2 quando é JSONB
+                            import json
+                            opcoes_value = opcoes_row[0]
+                            # Se já for uma lista ou dict, usar diretamente
+                            if isinstance(opcoes_value, (list, dict)):
+                                pergunta['opcoes'] = opcoes_value
+                            # Se for string, tentar fazer parse
+                            elif isinstance(opcoes_value, str):
+                                try:
+                                    pergunta['opcoes'] = json.loads(opcoes_value)
+                                except:
+                                    pergunta['opcoes'] = []
+                            else:
+                                pergunta['opcoes'] = []
                     
                     perguntas.append(pergunta)
                 

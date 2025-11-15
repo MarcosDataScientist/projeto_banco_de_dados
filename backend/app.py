@@ -429,16 +429,20 @@ def criar_avaliacao():
         data = request.get_json()
         
         # Validações
-        if not data.get('funcionario_id'):
-            return jsonify({'error': 'funcionario_id é obrigatório'}), 400
-        if not data.get('formulario_id'):
-            return jsonify({'error': 'formulario_id é obrigatório'}), 400
+        if not data.get('avaliado_cpf'):
+            return jsonify({'error': 'avaliado_cpf é obrigatório'}), 400
+        if not data.get('questionario_cod'):
+            return jsonify({'error': 'questionario_cod é obrigatório'}), 400
+        if not data.get('avaliador_cpf'):
+            return jsonify({'error': 'avaliador_cpf é obrigatório'}), 400
         
         avaliacao = AvaliacoesModel.criar(
-            data['funcionario_id'],
-            data['formulario_id'],
-            data.get('avaliador_id'),
-            data.get('status', 'Pendente')
+            data['avaliado_cpf'],
+            data['avaliador_cpf'],
+            data['questionario_cod'],
+            data.get('local'),
+            data.get('descricao'),
+            data.get('rating')
         )
         
         return jsonify(avaliacao[0]), 201
@@ -447,21 +451,75 @@ def criar_avaliacao():
 
 @app.route('/api/avaliacoes/<int:avaliacao_id>/status', methods=['PUT'])
 def atualizar_status_avaliacao(avaliacao_id):
-    """Atualiza status de uma avaliação"""
+    """Atualiza status de uma avaliação (rating e descrição)"""
     try:
         data = request.get_json()
         
-        if not data.get('status'):
-            return jsonify({'error': 'status é obrigatório'}), 400
-        
         avaliacao = AvaliacoesModel.atualizar_status(
             avaliacao_id,
-            data['status'],
-            data.get('data_inicio'),
-            data.get('data_conclusao')
+            data.get('rating'),
+            data.get('descricao')
         )
         
+        if not avaliacao:
+            return jsonify({'error': 'Nenhum campo para atualizar'}), 400
+        
         return jsonify(avaliacao[0]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/avaliacoes/<int:avaliacao_id>', methods=['PUT'])
+def atualizar_avaliacao(avaliacao_id):
+    """Atualiza as configurações de uma avaliação (funcionário, avaliador, questionário, local, descrição)"""
+    try:
+        data = request.get_json()
+        
+        # Validações
+        if data.get('avaliado_cpf') and data.get('avaliador_cpf') and data.get('avaliado_cpf') == data.get('avaliador_cpf'):
+            return jsonify({'error': 'O avaliador não pode ser o mesmo funcionário a ser avaliado'}), 400
+        
+        avaliacao = AvaliacoesModel.atualizar_configuracoes(
+            avaliacao_id,
+            data.get('avaliado_cpf'),
+            data.get('avaliador_cpf'),
+            data.get('questionario_cod'),
+            data.get('local'),
+            data.get('descricao')
+        )
+        
+        if not avaliacao:
+            return jsonify({'error': 'Nenhum campo para atualizar'}), 400
+        
+        return jsonify(avaliacao[0]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/avaliacoes/respostas', methods=['POST'])
+def salvar_resposta_avaliacao():
+    """Salva uma resposta de avaliação"""
+    try:
+        data = request.get_json()
+        
+        # Validações
+        if not data.get('avaliacao_cod'):
+            return jsonify({'error': 'avaliacao_cod é obrigatório'}), 400
+        if not data.get('questao_cod'):
+            return jsonify({'error': 'questao_cod é obrigatório'}), 400
+        if not data.get('tipo_resposta'):
+            return jsonify({'error': 'tipo_resposta é obrigatório'}), 400
+        
+        resposta = AvaliacoesModel.salvar_resposta(
+            data['avaliacao_cod'],
+            data['questao_cod'],
+            data['tipo_resposta'],
+            data.get('texto_resposta'),
+            data.get('escolha')
+        )
+        
+        if resposta:
+            return jsonify(resposta[0]), 201
+        else:
+            return jsonify({'error': 'Erro ao salvar resposta'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

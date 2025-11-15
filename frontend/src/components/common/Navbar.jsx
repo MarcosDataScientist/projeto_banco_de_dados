@@ -18,7 +18,7 @@ function Navbar({ currentPage, setCurrentPage }) {
   const dropdownRef = useRef(null)
   
   const menuItems = [
-    { id: 'avaliacao', label: 'Avaliação', icon: <AvaliacaoIcon /> },
+    { id: 'avaliacoes', label: 'Avaliação', icon: <AvaliacaoIcon /> },
     { id: 'funcionarios', label: 'Funcionários', icon: <UsersIcon /> },
     { id: 'avaliadores', label: 'Avaliadores', icon: <AvaliadoresIcon /> },
     { id: 'questionarios', label: 'Questionários', icon: <FormsIcon /> },

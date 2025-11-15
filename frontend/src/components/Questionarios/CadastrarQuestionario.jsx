@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { CheckIcon, SearchIcon, XIcon } from '../common/Icons'
 import api from '../../services/api'
 
-function CadastrarFormulario() {
+function CadastrarQuestionario() {
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
     nome: '',
@@ -31,8 +31,9 @@ function CadastrarFormulario() {
         api.getPerguntas(null, true), // Apenas perguntas ativas
         api.getClassificacoes()
       ])
-      setPerguntas(perguntasData)
-      setClassificacoes(classificacoesData)
+      // Garantir que perguntas seja sempre um array
+      setPerguntas(Array.isArray(perguntasData) ? perguntasData : [])
+      setClassificacoes(Array.isArray(classificacoesData) ? classificacoesData : [])
     } catch (err) {
       console.error('Erro ao carregar dados:', err)
       setError('Erro ao carregar dados necessários')
@@ -100,7 +101,7 @@ function CadastrarFormulario() {
     }
   }
 
-  const filteredPerguntas = perguntas.filter(pergunta => {
+  const filteredPerguntas = (Array.isArray(perguntas) ? perguntas : []).filter(pergunta => {
     const searchLower = searchTerm.toLowerCase()
     return (
       pergunta.texto_questao?.toLowerCase().includes(searchLower) ||
@@ -275,4 +276,4 @@ function CadastrarFormulario() {
   )
 }
 
-export default CadastrarFormulario
+export default CadastrarQuestionario

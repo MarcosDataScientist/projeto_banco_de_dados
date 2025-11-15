@@ -76,22 +76,49 @@ class AvaliacoesModel:
     def criar(avaliado_cpf, avaliador_cpf, questionario_cod, local=None, descricao=None, rating=None):
         """Cria uma nova avaliação"""
         from datetime import datetime
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
         
-        query = """
-            INSERT INTO Avaliacao 
-            (local, data_completa, descricao, rating, avaliado_cpf, avaliador_cpf, questionario_cod)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            RETURNING cod_avaliacao, data_completa, avaliado_cpf, avaliador_cpf
-        """
+        connection = None
+        cursor = None
         
-        data_completa = datetime.now()
-        
-        return execute_query(query, (local, data_completa, descricao, rating, 
-                                     avaliado_cpf, avaliador_cpf, questionario_cod))
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            
+            query = """
+                INSERT INTO Avaliacao 
+                (local, data_completa, descricao, rating, avaliado_cpf, avaliador_cpf, questionario_cod)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING cod_avaliacao, data_completa, avaliado_cpf, avaliador_cpf
+            """
+            
+            data_completa = datetime.now()
+            
+            cursor.execute(query, (local, data_completa, descricao, rating, 
+                                  avaliado_cpf, avaliador_cpf, questionario_cod))
+            connection.commit()
+            
+            result = cursor.fetchone()
+            return [dict(result)] if result else []
+            
+        except Exception as error:
+            if connection:
+                connection.rollback()
+            print(f"[ERRO] Erro ao criar avaliação: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
     
     @staticmethod
     def atualizar_status(avaliacao_id, rating=None, descricao=None):
         """Atualiza uma avaliação (rating e descrição no novo schema)"""
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
+        
         campos = []
         params = []
         
@@ -108,14 +135,101 @@ class AvaliacoesModel:
         
         params.append(avaliacao_id)
         
-        query = f"""
-            UPDATE Avaliacao 
-            SET {', '.join(campos)}
-            WHERE cod_avaliacao = %s
-            RETURNING cod_avaliacao, rating, descricao, data_completa
-        """
+        connection = None
+        cursor = None
         
-        return execute_query(query, tuple(params))
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            
+            query = f"""
+                UPDATE Avaliacao 
+                SET {', '.join(campos)}
+                WHERE cod_avaliacao = %s
+                RETURNING cod_avaliacao, rating, descricao, data_completa
+            """
+            
+            cursor.execute(query, tuple(params))
+            connection.commit()
+            
+            result = cursor.fetchone()
+            return [dict(result)] if result else None
+            
+        except Exception as error:
+            if connection:
+                connection.rollback()
+            print(f"[ERRO] Erro ao atualizar status da avaliação: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
+    
+    @staticmethod
+    def atualizar_configuracoes(avaliacao_id, avaliado_cpf=None, avaliador_cpf=None, questionario_cod=None, local=None, descricao=None):
+        """Atualiza as configurações de uma avaliação (funcionário, avaliador, questionário, local, descrição)"""
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
+        
+        campos = []
+        params = []
+        
+        if avaliado_cpf is not None:
+            campos.append("avaliado_cpf = %s")
+            params.append(avaliado_cpf)
+        
+        if avaliador_cpf is not None:
+            campos.append("avaliador_cpf = %s")
+            params.append(avaliador_cpf)
+        
+        if questionario_cod is not None:
+            campos.append("questionario_cod = %s")
+            params.append(questionario_cod)
+        
+        if local is not None:
+            campos.append("local = %s")
+            params.append(local)
+        
+        if descricao is not None:
+            campos.append("descricao = %s")
+            params.append(descricao)
+        
+        if not campos:
+            return None
+        
+        params.append(avaliacao_id)
+        
+        connection = None
+        cursor = None
+        
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            
+            query = f"""
+                UPDATE Avaliacao 
+                SET {', '.join(campos)}
+                WHERE cod_avaliacao = %s
+                RETURNING cod_avaliacao, avaliado_cpf, avaliador_cpf, questionario_cod, local, descricao
+            """
+            
+            cursor.execute(query, tuple(params))
+            connection.commit()
+            
+            result = cursor.fetchone()
+            return [dict(result)] if result else None
+            
+        except Exception as error:
+            if connection:
+                connection.rollback()
+            print(f"[ERRO] Erro ao atualizar configurações da avaliação: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
     
     @staticmethod
     def buscar_respostas(avaliacao_id):
@@ -124,6 +238,7 @@ class AvaliacoesModel:
             SELECT 
                 r.cod_resposta AS id,
                 r.tipo_resposta,
+                r.questao_cod,
                 q.texto_questao AS pergunta,
                 q.tipo_questao AS tipo_pergunta,
                 rt.texto_resposta,
@@ -140,38 +255,133 @@ class AvaliacoesModel:
     
     @staticmethod
     def salvar_resposta(avaliacao_cod, questao_cod, tipo_resposta, texto_resposta=None, escolha=None):
-        """Salva uma resposta de avaliação"""
-        # Primeiro criar a resposta base
-        query_resposta = """
-            INSERT INTO Resposta 
-            (tipo_resposta, avaliacao_cod, questao_cod)
-            VALUES (%s, %s, %s)
-            RETURNING cod_resposta
-        """
+        """Salva ou atualiza uma resposta de avaliação (UPSERT)"""
+        from backend.config.database import get_db_connection, Database
+        from psycopg2.extras import RealDictCursor
         
-        resultado = execute_query(query_resposta, (tipo_resposta, avaliacao_cod, questao_cod))
+        connection = None
+        cursor = None
         
-        if resultado:
-            cod_resposta = resultado[0]['cod_resposta']
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor(cursor_factory=RealDictCursor)
             
-            # Inserir na tabela específica
-            if tipo_resposta == 'Texto' and texto_resposta:
-                query_texto = """
-                    INSERT INTO Resposta_Texto (resposta_cod, texto_resposta)
-                    VALUES (%s, %s)
+            # Verificar se a resposta já existe
+            query_verificar = """
+                SELECT cod_resposta 
+                FROM Resposta 
+                WHERE avaliacao_cod = %s AND questao_cod = %s
+            """
+            cursor.execute(query_verificar, (avaliacao_cod, questao_cod))
+            resposta_existente = cursor.fetchone()
+            
+            if resposta_existente:
+                # Atualizar resposta existente
+                cod_resposta = resposta_existente['cod_resposta']
+                
+                # Atualizar tipo de resposta se necessário
+                query_atualizar_resposta = """
+                    UPDATE Resposta 
+                    SET tipo_resposta = %s
+                    WHERE cod_resposta = %s
                 """
-                execute_query(query_texto, (cod_resposta, texto_resposta), fetch=False)
-            
-            elif tipo_resposta == 'Escolha' and escolha:
-                query_escolha = """
-                    INSERT INTO Resposta_Escolha (resposta_cod, escolha)
-                    VALUES (%s, %s)
+                cursor.execute(query_atualizar_resposta, (tipo_resposta, cod_resposta))
+                
+                # Deletar respostas antigas nas tabelas específicas
+                if tipo_resposta == 'Texto':
+                    cursor.execute("DELETE FROM Resposta_Escolha WHERE resposta_cod = %s", (cod_resposta,))
+                    # Verificar se já existe resposta de texto
+                    cursor.execute("SELECT resposta_cod FROM Resposta_Texto WHERE resposta_cod = %s", (cod_resposta,))
+                    if cursor.fetchone():
+                        # Atualizar resposta de texto existente
+                        query_atualizar_texto = """
+                            UPDATE Resposta_Texto 
+                            SET texto_resposta = %s 
+                            WHERE resposta_cod = %s
+                        """
+                        cursor.execute(query_atualizar_texto, (texto_resposta, cod_resposta))
+                    else:
+                        # Inserir nova resposta de texto
+                        query_inserir_texto = """
+                            INSERT INTO Resposta_Texto (resposta_cod, texto_resposta)
+                            VALUES (%s, %s)
+                        """
+                        cursor.execute(query_inserir_texto, (cod_resposta, texto_resposta))
+                
+                elif tipo_resposta == 'Escolha':
+                    cursor.execute("DELETE FROM Resposta_Texto WHERE resposta_cod = %s", (cod_resposta,))
+                    # Verificar se já existe resposta de escolha
+                    cursor.execute("SELECT resposta_cod FROM Resposta_Escolha WHERE resposta_cod = %s", (cod_resposta,))
+                    if cursor.fetchone():
+                        # Atualizar resposta de escolha existente
+                        query_atualizar_escolha = """
+                            UPDATE Resposta_Escolha 
+                            SET escolha = %s 
+                            WHERE resposta_cod = %s
+                        """
+                        cursor.execute(query_atualizar_escolha, (escolha, cod_resposta))
+                    else:
+                        # Inserir nova resposta de escolha
+                        query_inserir_escolha = """
+                            INSERT INTO Resposta_Escolha (resposta_cod, escolha)
+                            VALUES (%s, %s)
+                        """
+                        cursor.execute(query_inserir_escolha, (cod_resposta, escolha))
+            else:
+                # Criar nova resposta
+                query_resposta = """
+                    INSERT INTO Resposta 
+                    (tipo_resposta, avaliacao_cod, questao_cod)
+                    VALUES (%s, %s, %s)
+                    RETURNING cod_resposta
                 """
-                execute_query(query_escolha, (cod_resposta, escolha), fetch=False)
+                
+                cursor.execute(query_resposta, (tipo_resposta, avaliacao_cod, questao_cod))
+                result = cursor.fetchone()
+                
+                if result:
+                    cod_resposta = result['cod_resposta']
+                    
+                    # Inserir na tabela específica
+                    if tipo_resposta == 'Texto' and texto_resposta:
+                        query_texto = """
+                            INSERT INTO Resposta_Texto (resposta_cod, texto_resposta)
+                            VALUES (%s, %s)
+                        """
+                        cursor.execute(query_texto, (cod_resposta, texto_resposta))
+                    
+                    elif tipo_resposta == 'Escolha' and escolha:
+                        query_escolha = """
+                            INSERT INTO Resposta_Escolha (resposta_cod, escolha)
+                            VALUES (%s, %s)
+                        """
+                        cursor.execute(query_escolha, (cod_resposta, escolha))
+                else:
+                    connection.rollback()
+                    return None
             
-            return resultado
-        
-        return None
+            connection.commit()
+            
+            # Retornar a resposta atualizada
+            query_retorno = """
+                SELECT cod_resposta AS id
+                FROM Resposta 
+                WHERE cod_resposta = %s
+            """
+            cursor.execute(query_retorno, (cod_resposta,))
+            result = cursor.fetchone()
+            return [dict(result)] if result else None
+            
+        except Exception as error:
+            if connection:
+                connection.rollback()
+            print(f"[ERRO] Erro ao salvar resposta: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
     
     @staticmethod
     def contar_por_rating():

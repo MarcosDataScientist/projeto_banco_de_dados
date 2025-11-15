@@ -219,6 +219,24 @@ class ApiService {
     })
   }
 
+  async atualizarAvaliacao(id, dados) {
+    return this.request(`/avaliacoes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados),
+    })
+  }
+
+  async salvarRespostaAvaliacao(dados) {
+    return this.request('/avaliacoes/respostas', {
+      method: 'POST',
+      body: JSON.stringify(dados),
+    })
+  }
+
+  async getRespostasAvaliacao(avaliacaoId) {
+    return this.request(`/avaliacoes/${avaliacaoId}`)
+  }
+
   // ==========================================
   // QUESTIONÁRIOS (FORMULÁRIOS)
   // ==========================================

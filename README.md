@@ -58,29 +58,17 @@ npm install
 
 1. **Iniciar o backend Flask** (Terminal 1):
 ```bash
-# Na raiz do projeto (recomendado)
+cd backend
 python run.py
 ```
-O servidor Flask estará rodando em `http://localhost:5001`
-
-**Nota**: Ambos os scripts (`run.py` na raiz e `backend/run.py`) fazem a mesma coisa. O da raiz é mais simples e direto, mas você pode executar `cd backend && python run.py` se preferir.
+O servidor Flask estará rodando na rota configurada em `.env`
 
 2. **Iniciar o frontend React** (Terminal 2):
 ```bash
 cd frontend
 npm run dev
 ```
-O servidor de desenvolvimento estará rodando em `http://localhost:3000`
-
-### Produção
-
-Para fazer build do frontend:
-```bash
-cd frontend
-npm run build
-```
-
-O build será gerado em `static/dist/` (na raiz do projeto) e será servido automaticamente pelo Flask quando você iniciar o backend.
+O servidor de desenvolvimento estará rodando na rota configurada em `.env`
 
 ## Configuração de Variáveis de Ambiente
 
