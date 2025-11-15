@@ -298,6 +298,19 @@ class ApiService {
       body: JSON.stringify(dados),
     })
   }
+
+  async atualizarVinculoFuncionarioTreinamento(dados) {
+    return this.request('/funcionario-treinamento', {
+      method: 'PUT',
+      body: JSON.stringify(dados),
+    })
+  }
+
+  async deletarVinculoFuncionarioTreinamento(funcionario_cpf, treinamento_cod) {
+    return this.request(`/funcionario-treinamento?funcionario_cpf=${funcionario_cpf}&treinamento_cod=${treinamento_cod}`, {
+      method: 'DELETE',
+    })
+  }
 }
 
 export default new ApiService()
