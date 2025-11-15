@@ -254,6 +254,12 @@ class AvaliacoesModel:
         return execute_query(query, (avaliacao_id,))
     
     @staticmethod
+    def deletar(avaliacao_id):
+        """Deleta uma avaliação e suas respostas (CASCADE)"""
+        query = "DELETE FROM Avaliacao WHERE cod_avaliacao = %s"
+        return execute_query(query, (avaliacao_id,), fetch=False)
+    
+    @staticmethod
     def salvar_resposta(avaliacao_cod, questao_cod, tipo_resposta, texto_resposta=None, escolha=None):
         """Salva ou atualiza uma resposta de avaliação (UPSERT)"""
         from backend.config.database import get_db_connection, Database

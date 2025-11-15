@@ -138,7 +138,7 @@ class ApiService {
   // PERGUNTAS
   // ==========================================
 
-  async getPerguntas(categoria = null, ativa = null, page = 1, per_page = 10) {
+  async getPerguntas(categoria = null, ativa = null, page = 1, per_page = 10, busca = null, tipo = null) {
     let query = ''
     const params = []
     
@@ -154,12 +154,27 @@ class ApiService {
     if (per_page) {
       params.push(`per_page=${per_page}`)
     }
+    if (busca) {
+      params.push(`q=${encodeURIComponent(busca)}`)
+    }
+    if (tipo && tipo !== 'Todos') {
+      params.push(`tipo=${encodeURIComponent(tipo)}`)
+    }
     
     if (params.length > 0) {
       query = '?' + params.join('&')
     }
     
-    return this.request(`/perguntas${query}`)
+    const response = this.request(`/perguntas${query}`)
+    // Retornar resposta completa com paginação se disponível
+    return response.then(data => {
+      // Se tem estrutura de paginação, retornar completo
+      if (data.perguntas && data.pagination) {
+        return data
+      }
+      // Caso contrário, retornar apenas o array
+      return data
+    })
   }
 
   async getPergunta(id) {
@@ -235,6 +250,12 @@ class ApiService {
 
   async getRespostasAvaliacao(avaliacaoId) {
     return this.request(`/avaliacoes/${avaliacaoId}`)
+  }
+
+  async deletarAvaliacao(id) {
+    return this.request(`/avaliacoes/${id}`, {
+      method: 'DELETE',
+    })
   }
 
   // ==========================================

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SearchIcon, PlusIcon, EditIcon, DeleteIcon, QuestionsIcon, EyeIcon } from '../common/Icons'
 import CadastrarPergunta from './CadastrarPergunta'
+import Toast from '../common/Toast'
 import api from '../../services/api'
 
 function Perguntas() {
@@ -25,18 +26,75 @@ function Perguntas() {
     has_prev: false,
     has_next: false
   })
+  
+  // Estado do Toast
+  const [toast, setToast] = useState({
+    show: false,
+    type: 'success',
+    title: '',
+    message: ''
+  })
 
+  const isInitialMount = useRef(true)
+  const searchTimeoutRef = useRef(null)
+
+  // Carregar dados inicialmente
   useEffect(() => {
     carregarDados()
-  }, [pagination.page])
+    isInitialMount.current = false
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Debounce para busca - apenas resetar página
+  useEffect(() => {
+    if (isInitialMount.current) {
+      return
+    }
+
+    // Limpar timeout anterior
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    // Resetar para página 1 quando buscar (isso vai disparar o useEffect de carregarDados)
+    searchTimeoutRef.current = setTimeout(() => {
+      if (pagination.page !== 1) {
+        setPagination(prev => ({ ...prev, page: 1 }))
+      } else {
+        // Se já está na página 1, recarregar diretamente
+        carregarDados()
+      }
+    }, 500)
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm])
+
+  // Carregar dados quando página ou filtros mudarem
+  useEffect(() => {
+    if (isInitialMount.current) {
+      return
+    }
+    carregarDados()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.page, filtroTipo, filtroStatus])
 
   const carregarDados = async () => {
     try {
       setLoading(true)
       setError(null)
       
+      // Preparar parâmetros de filtro
+      const statusAtivo = filtroStatus === 'Ativo' ? true : filtroStatus === 'Inativo' ? false : null
+      const tipoFiltro = filtroTipo || null
+      const buscaTermo = searchTerm.trim() || null
+      
       const [perguntasResponse, categoriasData] = await Promise.all([
-        api.getPerguntas(null, null, pagination.page, pagination.per_page),
+        api.getPerguntas(null, statusAtivo, pagination.page, pagination.per_page, buscaTermo, tipoFiltro),
         api.getCategorias()
       ])
       
@@ -78,7 +136,7 @@ function Perguntas() {
     setPerguntaToView(null)
   }
 
-  // Usar perguntas diretamente, filtros serão implementados no backend futuramente
+  // Perguntas já vêm filtradas do backend
   const filteredPerguntas = perguntas
 
   const getTipoBadgeColor = (tipo) => {
@@ -91,15 +149,58 @@ function Perguntas() {
     }
   }
 
+  const showToast = (type, title, message) => {
+    setToast({
+      show: true,
+      type,
+      title,
+      message
+    })
+  }
+
+  const closeToast = () => {
+    setToast(prev => ({ ...prev, show: false }))
+  }
+
   const handleDelete = async (id) => {
     if (!confirm('Tem certeza que deseja excluir esta pergunta?')) return
 
     try {
       await api.deletarPergunta(id)
       setPerguntas(perguntas.filter(p => p.cod_questao !== id))
+      showToast(
+        'success',
+        'Pergunta excluída!',
+        'A pergunta foi excluída com sucesso.'
+      )
+      // Recarregar dados para atualizar a paginação
+      carregarDados()
     } catch (err) {
       console.error('Erro ao deletar pergunta:', err)
-      alert('Erro ao excluir pergunta. Tente novamente.')
+      
+      // Extrair mensagem de erro do backend
+      const errorMessage = err.response?.data?.error || err.message || 'Erro ao excluir pergunta'
+      
+      // Verificar se é erro de associação a formulários ou respostas
+      if (errorMessage.includes('formulário') || errorMessage.includes('formularios')) {
+        showToast(
+          'error',
+          'Não é possível excluir',
+          errorMessage
+        )
+      } else if (errorMessage.includes('resposta') || errorMessage.includes('avaliação')) {
+        showToast(
+          'error',
+          'Não é possível excluir',
+          errorMessage
+        )
+      } else {
+        showToast(
+          'error',
+          'Erro ao excluir pergunta',
+          errorMessage
+        )
+      }
     }
   }
 
@@ -327,6 +428,15 @@ function Perguntas() {
           isOpen={isCadastroModalOpen}
           onClose={() => setIsCadastroModalOpen(false)}
           onSuccess={handleCadastroSuccess}
+        />
+
+        <Toast
+          show={toast.show}
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={closeToast}
+          duration={6000}
         />
 
         {/* Modal de Visualização */}

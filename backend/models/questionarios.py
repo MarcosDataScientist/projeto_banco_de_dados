@@ -250,15 +250,28 @@ class QuestionariosModel:
             Database.return_connection(conn)
     
     @staticmethod
+    def verificar_uso_em_avaliacoes(questionario_id):
+        """Verifica se o questionário está sendo usado em alguma avaliação"""
+        conn = Database.get_connection()
+        if not conn:
+            raise Exception("Não foi possível conectar ao banco de dados")
+        
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT COUNT(*) FROM Avaliacao WHERE questionario_cod = %s",
+                    (questionario_id,)
+                )
+                total = cursor.fetchone()[0]
+                return total
+        finally:
+            Database.return_connection(conn)
+    
+    @staticmethod
     def deletar_com_cascata(questionario_id):
         """
-        Deleta um questionário e todos os dados relacionados em cascata.
-        Ordem de deleção:
-        1. Respostas (Resposta_Texto e Resposta_Escolha) das avaliações que usaram o questionário
-        2. Respostas gerais das avaliações
-        3. Avaliações que usaram o questionário
-        4. Vínculos com perguntas (Questionario_Questao)
-        5. O questionário
+        Deleta um questionário APENAS se não estiver associado a avaliações.
+        Se houver avaliações associadas, retorna erro.
         """
         conn = Database.get_connection()
         if not conn:
@@ -276,54 +289,29 @@ class QuestionariosModel:
                 if not questionario:
                     return {'sucesso': False, 'mensagem': 'Questionário não encontrado'}
                 
-                # Contar registros que serão deletados
-                # 1. Contar avaliações
+                # Verificar se há avaliações associadas
                 cursor.execute(
                     "SELECT COUNT(*) FROM Avaliacao WHERE questionario_cod = %s",
                     (questionario_id,)
                 )
                 total_avaliacoes = cursor.fetchone()[0]
                 
-                # 2. Contar respostas (através das avaliações)
-                cursor.execute(
-                    """
-                    SELECT COUNT(*) FROM Resposta r
-                    JOIN Avaliacao a ON r.avaliacao_cod = a.cod_avaliacao
-                    WHERE a.questionario_cod = %s
-                    """,
-                    (questionario_id,)
-                )
-                total_respostas = cursor.fetchone()[0]
+                if total_avaliacoes > 0:
+                    return {
+                        'sucesso': False,
+                        'mensagem': f'Não é possível excluir este questionário. Ele está sendo usado em {total_avaliacoes} avaliação(ões).',
+                        'total_avaliacoes': total_avaliacoes
+                    }
                 
-                # 3. Contar vínculos com perguntas
-                cursor.execute(
-                    "SELECT COUNT(*) FROM Questionario_Questao WHERE questionario_cod = %s",
-                    (questionario_id,)
-                )
-                total_vinculos = cursor.fetchone()[0]
-                
-                # DELEÇÃO EM CASCATA
-                # Passo 1: Deletar respostas de texto e escolha
-                # (Tabelas Resposta_Texto e Resposta_Escolha têm ON DELETE CASCADE na FK)
-                
-                # Passo 2: Deletar respostas gerais
-                # (Tabela Resposta tem ON DELETE CASCADE na FK com Avaliacao)
-                
-                # Passo 3: Deletar avaliações que usaram o questionário
-                cursor.execute(
-                    "DELETE FROM Avaliacao WHERE questionario_cod = %s",
-                    (questionario_id,)
-                )
-                avaliacoes_deletadas = cursor.rowcount
-                
-                # Passo 4: Deletar vínculos com perguntas
+                # Se não houver avaliações, pode deletar
+                # Deletar vínculos com perguntas
                 cursor.execute(
                     "DELETE FROM Questionario_Questao WHERE questionario_cod = %s",
                     (questionario_id,)
                 )
                 vinculos_deletados = cursor.rowcount
                 
-                # Passo 5: Deletar o questionário
+                # Deletar o questionário
                 cursor.execute(
                     "DELETE FROM Questionario WHERE cod_questionario = %s",
                     (questionario_id,)
@@ -337,8 +325,6 @@ class QuestionariosModel:
                     'questionario_id': questionario_id,
                     'questionario_nome': questionario[1] if len(questionario) > 1 else None,
                     'estatisticas': {
-                        'avaliacoes_deletadas': avaliacoes_deletadas,
-                        'respostas_deletadas': total_respostas,  # Deletadas em cascata
                         'vinculos_deletados': vinculos_deletados,
                         'questionarios_deletados': questionario_deletado
                     }
@@ -346,7 +332,14 @@ class QuestionariosModel:
                 
         except Exception as e:
             conn.rollback()
-            raise Exception(f"Erro ao deletar questionário: {str(e)}")
+            error_msg = str(e)
+            # Verificar se o erro é de constraint RESTRICT
+            if 'restrict' in error_msg.lower() or 'violates foreign key constraint' in error_msg.lower():
+                return {
+                    'sucesso': False,
+                    'mensagem': 'Não é possível excluir este questionário. Ele está sendo usado em avaliações.'
+                }
+            raise Exception(f"Erro ao deletar questionário: {error_msg}")
         finally:
             Database.return_connection(conn)
     

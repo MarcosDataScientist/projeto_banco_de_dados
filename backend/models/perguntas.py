@@ -41,7 +41,7 @@ class PerguntasModel:
         return execute_query(query, tuple(params) if params else None)
     
     @staticmethod
-    def listar_com_paginacao(filtro_tipo=None, filtro_status=None, page=1, per_page=10):
+    def listar_com_paginacao(filtro_tipo=None, filtro_status=None, filtro_busca=None, page=1, per_page=10):
         """Lista perguntas com paginação"""
         from backend.config.database import get_db_connection, Database
         from psycopg2.extras import RealDictCursor
@@ -68,6 +68,12 @@ class PerguntasModel:
             if filtro_status:
                 base_query += " AND q.status = %s"
                 params.append(filtro_status)
+            
+            if filtro_busca:
+                base_query += " AND (LOWER(q.texto_questao) LIKE %s OR LOWER(q.tipo_questao) LIKE %s)"
+                busca_pattern = f"%{filtro_busca.lower()}%"
+                params.append(busca_pattern)
+                params.append(busca_pattern)
             
             # Contar total de registros
             count_query = f"SELECT COUNT(*) as total {base_query}"
@@ -383,6 +389,70 @@ class PerguntasModel:
                 cursor.close()
             if connection:
                 Database.return_connection(connection)
+    
+    @staticmethod
+    def verificar_uso_em_formularios(questao_id):
+        """Verifica se a questão está sendo usada em algum questionário"""
+        from backend.config.database import get_db_connection, Database
+        
+        conn = None
+        cursor = None
+        
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            query = """
+                SELECT COUNT(*) as total
+                FROM Questionario_Questao
+                WHERE questao_cod = %s
+            """
+            
+            cursor.execute(query, (questao_id,))
+            resultado = cursor.fetchone()
+            
+            return resultado[0] if resultado else 0
+            
+        except Exception as error:
+            print(f"[ERRO] Erro ao verificar uso em formulários: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                Database.return_connection(conn)
+
+    @staticmethod
+    def verificar_uso_em_respostas(questao_id):
+        """Verifica se a questão está sendo usada em alguma resposta"""
+        from backend.config.database import get_db_connection, Database
+        
+        conn = None
+        cursor = None
+        
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            query = """
+                SELECT COUNT(*) as total
+                FROM Resposta
+                WHERE questao_cod = %s
+            """
+            
+            cursor.execute(query, (questao_id,))
+            resultado = cursor.fetchone()
+            
+            return resultado[0] if resultado else 0
+            
+        except Exception as error:
+            print(f"[ERRO] Erro ao verificar uso em respostas: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                Database.return_connection(conn)
     
     @staticmethod
     def deletar(questao_id):

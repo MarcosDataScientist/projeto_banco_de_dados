@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { SearchIcon, PlusIcon, EyeIcon, FormsIcon, DeleteIcon } from '../common/Icons'
+import { SearchIcon, PlusIcon, EyeIcon, FormsIcon, DeleteIcon, EditIcon } from '../common/Icons'
 import ConfirmDeleteQuestionario from './ConfirmDeleteQuestionario'
 import VisualizarQuestionario from './VisualizarQuestionario'
 import Toast from '../common/Toast'
@@ -44,6 +44,16 @@ function Formularios() {
       )
       // Limpar parâmetros da URL
       setSearchParams({})
+    } else if (success === 'updated' && nome) {
+      showToast(
+        'success',
+        'Questionário atualizado com sucesso!',
+        `O questionário "${decodeURIComponent(nome)}" foi atualizado.`
+      )
+      // Limpar parâmetros da URL
+      setSearchParams({})
+      // Recarregar lista
+      carregarQuestionarios()
     }
   }, [searchParams, setSearchParams])
 
@@ -87,8 +97,8 @@ function Formularios() {
         // Mostrar mensagem de sucesso
         const stats = resultado.detalhes?.estatisticas
         const mensagem = stats 
-          ? `${stats.avaliacoes_deletadas} avaliação(ões) e ${stats.respostas_deletadas} resposta(s) foram removidas.`
-          : 'Todas as informações relacionadas foram removidas.'
+          ? `O questionário e seus vínculos foram removidos.`
+          : 'O questionário foi removido com sucesso.'
         
         setToast({
           show: true,
@@ -99,15 +109,19 @@ function Formularios() {
       } catch (err) {
         console.error('Erro ao deletar questionário:', err)
         
+        // Extrair mensagem de erro do backend
+        const errorMessage = err.response?.data?.error || err.message || 'Não foi possível excluir o questionário. Tente novamente.'
+        
+        // Fechar modal mesmo em caso de erro
+        setIsDeleteModalOpen(false)
+        
         // Mostrar mensagem de erro
         setToast({
           show: true,
           type: 'error',
-          title: 'Erro ao excluir questionário',
-          message: err.message || 'Não foi possível excluir o questionário. Tente novamente.'
+          title: 'Não é possível excluir',
+          message: errorMessage
         })
-        
-        throw err
       }
     }
   }
@@ -278,6 +292,13 @@ function Formularios() {
                     onClick={() => handleViewClick(formulario)}
                   >
                     <EyeIcon />
+                  </button>
+                  <button 
+                    className="btn-action btn-edit" 
+                    title="Editar questionário"
+                    onClick={() => navigate(`/questionarios/editar/${formulario.id}`)}
+                  >
+                    <EditIcon />
                   </button>
                   <button 
                     className="btn-action btn-delete"

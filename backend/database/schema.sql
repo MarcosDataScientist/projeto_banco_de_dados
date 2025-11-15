@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS Avaliacao (
     rating SMALLINT,
     avaliado_cpf VARCHAR(11) NOT NULL REFERENCES Funcionario(cpf),
     avaliador_cpf VARCHAR(11) NOT NULL REFERENCES Funcionario(cpf),
-    questionario_cod INTEGER NOT NULL REFERENCES Questionario(cod_questionario)
+    questionario_cod INTEGER NOT NULL REFERENCES Questionario(cod_questionario) ON DELETE RESTRICT
 );
 
 -- Tabela de Respostas
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS Funcionario_Treinamento (
 -- Relacionamento Questionário-Questão
 CREATE TABLE IF NOT EXISTS Questionario_Questao (
     questionario_cod INTEGER REFERENCES Questionario(cod_questionario) ON DELETE CASCADE,
-    questao_cod INTEGER REFERENCES Questao(cod_questao) ON DELETE CASCADE,
+    questao_cod INTEGER REFERENCES Questao(cod_questao) ON DELETE RESTRICT,
     PRIMARY KEY (questionario_cod, questao_cod)
 );
 

@@ -2,16 +2,11 @@ import React, { useState } from 'react'
 import { XIcon, AlertCircleIcon, DeleteIcon } from '../common/Icons'
 
 function ConfirmDeleteQuestionario({ isOpen, onClose, onConfirm, questionario }) {
-  const [nomeDigitado, setNomeDigitado] = useState('')
   const [loading, setLoading] = useState(false)
 
   if (!isOpen || !questionario) return null
 
-  const nomeCorreto = nomeDigitado.trim() === questionario.titulo.trim()
-
   const handleConfirm = async () => {
-    if (!nomeCorreto) return
-
     try {
       setLoading(true)
       await onConfirm()
@@ -24,14 +19,7 @@ function ConfirmDeleteQuestionario({ isOpen, onClose, onConfirm, questionario })
   }
 
   const handleClose = () => {
-    setNomeDigitado('')
     onClose()
-  }
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && nomeCorreto && !loading) {
-      handleConfirm()
-    }
   }
 
   return (
@@ -70,27 +58,6 @@ function ConfirmDeleteQuestionario({ isOpen, onClose, onConfirm, questionario })
             </div>
           </div>
 
-          <div className="confirm-input-group">
-            <label htmlFor="confirm-name">
-              Para confirmar, digite o nome do questionário:
-              <br />
-              <strong>{questionario.titulo}</strong>
-            </label>
-            <input
-              type="text"
-              id="confirm-name"
-              value={nomeDigitado}
-              onChange={(e) => setNomeDigitado(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Digite o nome do questionário"
-              className="confirm-input"
-              autoFocus
-              disabled={loading}
-            />
-            {nomeDigitado && !nomeCorreto && (
-              <p className="error-text">O nome digitado não corresponde ao questionário</p>
-            )}
-          </div>
         </div>
 
         <div className="modal-footer">
@@ -99,16 +66,16 @@ function ConfirmDeleteQuestionario({ isOpen, onClose, onConfirm, questionario })
             onClick={handleClose}
             disabled={loading}
           >
-            Cancelar
+            Não
           </button>
           <button
             className="btn-danger"
             onClick={handleConfirm}
-            disabled={!nomeCorreto || loading}
+            disabled={loading}
           >
             {loading ? 'Excluindo...' : (
               <>
-                <DeleteIcon /> Excluir Permanentemente
+                <DeleteIcon /> Sim, Excluir
               </>
             )}
           </button>
@@ -281,54 +248,6 @@ function ConfirmDeleteQuestionario({ isOpen, onClose, onConfirm, questionario })
           align-items: center;
         }
 
-        .confirm-input-group {
-          margin-top: 20px;
-        }
-
-        .confirm-input-group label {
-          display: block;
-          margin-bottom: 12px;
-          font-size: 14px;
-          color: #374151;
-          line-height: 1.6;
-          text-align: center;
-        }
-
-        .confirm-input-group strong {
-          color: #dc2626;
-          font-weight: 700;
-          font-size: 15px;
-          display: inline-block;
-          margin-top: 6px;
-        }
-
-        .confirm-input {
-          width: 100%;
-          padding: 12px;
-          border: 2px solid #d1d5db;
-          border-radius: 8px;
-          font-size: 14px;
-          font-family: inherit;
-          transition: all 0.2s;
-        }
-
-        .confirm-input:focus {
-          outline: none;
-          border-color: #dc2626;
-          box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
-        }
-
-        .confirm-input:disabled {
-          background: #f3f4f6;
-          cursor: not-allowed;
-        }
-
-        .error-text {
-          margin: 8px 0 0 0;
-          font-size: 13px;
-          color: #dc2626;
-          text-align: center;
-        }
 
         .modal-footer {
           padding: 20px 24px;
