@@ -249,8 +249,11 @@ def get_funcionarios():
         # Validar parâmetros
         if page < 1:
             page = 1
-        if per_page < 1 or per_page > 100:
+        # Permitir até 10000 para casos especiais (como listagem completa para seleção)
+        if per_page < 1:
             per_page = 20
+        elif per_page > 10000:
+            per_page = 10000
         
         # Buscar funcionários com paginação
         # departamento aqui é um nome de setor (string), usar filtro_setor
@@ -684,6 +687,73 @@ def criar_vinculo_funcionario_treinamento():
             conn.commit()
             return jsonify({'message': 'Vínculo criado com sucesso'}), 201
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if 'conn' in locals():
+            Database.return_connection(conn)
+
+@app.route('/api/funcionario-treinamento', methods=['PUT'])
+def atualizar_vinculo_funcionario_treinamento():
+    """Atualiza vínculo entre funcionário e treinamento (apenas n_certificado)"""
+    try:
+        dados = request.get_json()
+        conn = Database.get_connection()
+        if not conn:
+            raise Exception("Não foi possível conectar ao banco de dados")
+        
+        if not dados.get('funcionario_cpf') or not dados.get('treinamento_cod'):
+            return jsonify({'error': 'CPF do funcionário e código do treinamento são obrigatórios'}), 400
+        
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                UPDATE Funcionario_Treinamento
+                SET n_certificado = %s
+                WHERE funcionario_cpf = %s AND treinamento_cod = %s
+            """, (dados.get('n_certificado'), dados['funcionario_cpf'], dados['treinamento_cod']))
+            
+            if cursor.rowcount == 0:
+                conn.rollback()
+                return jsonify({'error': 'Certificado não encontrado'}), 404
+            
+            conn.commit()
+            return jsonify({'message': 'Certificado atualizado com sucesso'}), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if 'conn' in locals():
+            Database.return_connection(conn)
+
+@app.route('/api/funcionario-treinamento', methods=['DELETE'])
+def deletar_vinculo_funcionario_treinamento():
+    """Deleta vínculo entre funcionário e treinamento"""
+    try:
+        funcionario_cpf = request.args.get('funcionario_cpf')
+        treinamento_cod = request.args.get('treinamento_cod')
+        
+        if not funcionario_cpf or not treinamento_cod:
+            return jsonify({'error': 'CPF do funcionário e código do treinamento são obrigatórios'}), 400
+        
+        conn = Database.get_connection()
+        if not conn:
+            raise Exception("Não foi possível conectar ao banco de dados")
+        
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                DELETE FROM Funcionario_Treinamento
+                WHERE funcionario_cpf = %s AND treinamento_cod = %s
+            """, (funcionario_cpf, treinamento_cod))
+            
+            if cursor.rowcount == 0:
+                conn.rollback()
+                return jsonify({'error': 'Certificado não encontrado'}), 404
+            
+            conn.commit()
+            return jsonify({'message': 'Certificado deletado com sucesso'}), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
         return jsonify({'error': str(e)}), 500
     finally:
         if 'conn' in locals():

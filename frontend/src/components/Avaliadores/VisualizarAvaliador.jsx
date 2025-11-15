@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { SaveIcon, XIcon, UserIcon, PlusIcon, EditIcon, DeleteIcon, CertificateIcon } from '../common/Icons'
 import Toast from '../common/Toast'
+import ConfirmModal from '../common/ConfirmModal'
 import api from '../../services/api'
 
 function VisualizarAvaliador() {
@@ -16,6 +17,26 @@ function VisualizarAvaliador() {
   const [avaliador, setAvaliador] = useState(null)
   const [certificados, setCertificados] = useState([])
   
+  // Estado do modal de adicionar certificado
+  const [showModalCertificado, setShowModalCertificado] = useState(false)
+  const [novoCertificado, setNovoCertificado] = useState({
+    treinamento_cod: '',
+    n_certificado: ''
+  })
+  const [treinamentos, setTreinamentos] = useState([])
+  const [salvandoCertificado, setSalvandoCertificado] = useState(false)
+  
+  // Estado do modal de editar certificado
+  const [showModalEditarCertificado, setShowModalEditarCertificado] = useState(false)
+  const [certificadoEditando, setCertificadoEditando] = useState(null)
+  const [certificadoEditado, setCertificadoEditado] = useState({
+    n_certificado: ''
+  })
+  
+  // Estado do modal de confirmar exclusão
+  const [showModalExcluir, setShowModalExcluir] = useState(false)
+  const [certificadoExcluir, setCertificadoExcluir] = useState(null)
+  
   // Estado do Toast
   const [toast, setToast] = useState({
     show: false,
@@ -26,6 +47,7 @@ function VisualizarAvaliador() {
 
   useEffect(() => {
     carregarDados()
+    carregarTreinamentos()
   }, [cpf])
 
   const carregarDados = async () => {
@@ -41,9 +63,25 @@ function VisualizarAvaliador() {
       const dadosCertificados = await api.getCertificadosAvaliador(cpf)
       setCertificados(dadosCertificados)
       
+      // Se não houver certificados, a pessoa não é mais um avaliador
+      if (!dadosCertificados || dadosCertificados.length === 0) {
+        showToast(
+          'info',
+          'Avaliador não encontrado',
+          'Este funcionário não possui treinamentos e não é um avaliador.'
+        )
+        setTimeout(() => {
+          navigate('/avaliadores')
+        }, 2000)
+      }
+      
     } catch (err) {
       console.error('Erro ao carregar dados:', err)
       setError('Erro ao carregar dados do avaliador. Tente novamente.')
+      // Se houver erro ao buscar, pode ser que não seja mais um avaliador
+      setTimeout(() => {
+        navigate('/avaliadores')
+      }, 3000)
     } finally {
       setLoading(false)
     }
@@ -112,6 +150,200 @@ function VisualizarAvaliador() {
 
   const closeToast = () => {
     setToast(prev => ({ ...prev, show: false }))
+  }
+
+  const carregarTreinamentos = async () => {
+    try {
+      const dados = await api.getTreinamentos()
+      setTreinamentos(dados)
+    } catch (err) {
+      console.error('Erro ao carregar treinamentos:', err)
+    }
+  }
+
+  const handleInputChangeCertificado = (e) => {
+    const { name, value } = e.target
+    setNovoCertificado(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleAbrirModalCertificado = () => {
+    setNovoCertificado({
+      treinamento_cod: '',
+      n_certificado: ''
+    })
+    setShowModalCertificado(true)
+  }
+
+  const handleFecharModalCertificado = () => {
+    setShowModalCertificado(false)
+    setNovoCertificado({
+      treinamento_cod: '',
+      n_certificado: ''
+    })
+  }
+
+  const handleAdicionarCertificado = async (e) => {
+    e.preventDefault()
+    
+    if (!novoCertificado.treinamento_cod || !novoCertificado.n_certificado) {
+      showToast(
+        'error',
+        'Campos obrigatórios',
+        'Preencha o treinamento e o número do certificado'
+      )
+      return
+    }
+
+    try {
+      setSalvandoCertificado(true)
+      
+      const dadosVinculo = {
+        funcionario_cpf: cpf,
+        treinamento_cod: parseInt(novoCertificado.treinamento_cod),
+        n_certificado: novoCertificado.n_certificado
+      }
+      
+      await api.criarVinculoFuncionarioTreinamento(dadosVinculo)
+      
+      // Recarregar certificados
+      const dadosCertificados = await api.getCertificadosAvaliador(cpf)
+      setCertificados(dadosCertificados)
+      
+      showToast(
+        'success',
+        'Certificado adicionado!',
+        'O certificado foi adicionado com sucesso ao avaliador.'
+      )
+      
+      handleFecharModalCertificado()
+      
+    } catch (err) {
+      console.error('Erro ao adicionar certificado:', err)
+      showToast(
+        'error',
+        'Erro ao adicionar certificado',
+        err.message || 'Não foi possível adicionar o certificado. Tente novamente.'
+      )
+    } finally {
+      setSalvandoCertificado(false)
+    }
+  }
+
+  const handleEditarCertificado = (certificado) => {
+    setCertificadoEditando(certificado)
+    setCertificadoEditado({
+      n_certificado: certificado.n_certificado || ''
+    })
+    setShowModalEditarCertificado(true)
+  }
+
+  const handleFecharModalEditar = () => {
+    setShowModalEditarCertificado(false)
+    setCertificadoEditando(null)
+    setCertificadoEditado({ n_certificado: '' })
+  }
+
+  const handleSalvarEdicaoCertificado = async (e) => {
+    e.preventDefault()
+    
+    if (!certificadoEditado.n_certificado) {
+      showToast(
+        'error',
+        'Campo obrigatório',
+        'O número do certificado é obrigatório'
+      )
+      return
+    }
+
+    try {
+      setSalvandoCertificado(true)
+      
+      const dadosAtualizacao = {
+        funcionario_cpf: cpf,
+        treinamento_cod: certificadoEditando.cod_treinamento,
+        n_certificado: certificadoEditado.n_certificado
+      }
+      
+      await api.atualizarVinculoFuncionarioTreinamento(dadosAtualizacao)
+      
+      // Recarregar certificados
+      const dadosCertificados = await api.getCertificadosAvaliador(cpf)
+      setCertificados(dadosCertificados)
+      
+      showToast(
+        'success',
+        'Certificado atualizado!',
+        'O certificado foi atualizado com sucesso.'
+      )
+      
+      handleFecharModalEditar()
+      
+    } catch (err) {
+      console.error('Erro ao atualizar certificado:', err)
+      showToast(
+        'error',
+        'Erro ao atualizar certificado',
+        err.message || 'Não foi possível atualizar o certificado. Tente novamente.'
+      )
+    } finally {
+      setSalvandoCertificado(false)
+    }
+  }
+
+  const handleExcluirCertificado = (certificado) => {
+    setCertificadoExcluir(certificado)
+    setShowModalExcluir(true)
+  }
+
+  const handleConfirmarExclusao = async () => {
+    if (!certificadoExcluir) return
+
+    try {
+      setSalvandoCertificado(true)
+      
+      await api.deletarVinculoFuncionarioTreinamento(cpf, certificadoExcluir.cod_treinamento)
+      
+      // Recarregar certificados
+      const dadosCertificados = await api.getCertificadosAvaliador(cpf)
+      setCertificados(dadosCertificados)
+      
+      // Verificar se ainda há certificados
+      if (!dadosCertificados || dadosCertificados.length === 0) {
+        // Não há mais certificados, a pessoa não é mais um avaliador
+        showToast(
+          'info',
+          'Avaliador removido',
+          'Este funcionário não possui mais treinamentos e não é mais um avaliador.'
+        )
+        
+        // Aguardar um pouco para mostrar o toast e depois redirecionar
+        setTimeout(() => {
+          navigate('/avaliadores')
+        }, 2000)
+      } else {
+        showToast(
+          'success',
+          'Certificado excluído!',
+          'O certificado foi excluído com sucesso.'
+        )
+      }
+      
+      setShowModalExcluir(false)
+      setCertificadoExcluir(null)
+      
+    } catch (err) {
+      console.error('Erro ao excluir certificado:', err)
+      showToast(
+        'error',
+        'Erro ao excluir certificado',
+        err.message || 'Não foi possível excluir o certificado. Tente novamente.'
+      )
+    } finally {
+      setSalvandoCertificado(false)
+    }
   }
 
   const formatarData = (dataString) => {
@@ -327,7 +559,7 @@ function VisualizarAvaliador() {
           <div className="form-card">
             <div className="card-header">
               <h3>Certificados do Avaliador</h3>
-              <button className="btn-primary btn-sm" onClick={() => navigate(`/avaliadores/visualizar/${cpf}/novo-certificado`)}>
+              <button className="btn-primary btn-sm" onClick={handleAbrirModalCertificado}>
                 <PlusIcon /> Adicionar Certificado
               </button>
             </div>
@@ -348,25 +580,22 @@ function VisualizarAvaliador() {
                       <div className="certificado-info">
                         <h4>{cert.nome_treinamento}</h4>
                         <p><strong>Certificado:</strong> {cert.n_certificado}</p>
-                        <div className="certificado-datas">
-                          <span>📅 Realização: {formatarData(cert.data_realizacao)}</span>
-                          <span>⏰ Validade: {formatarData(cert.validade)}</span>
-                        </div>
-                        {cert.local && <p><strong>Local:</strong> {cert.local}</p>}
                       </div>
                     </div>
                     <div className="certificado-actions">
                       <button 
                         className="btn-action btn-edit" 
                         title="Editar certificado"
-                        onClick={() => console.log('Editar certificado', cert)}
+                        onClick={() => handleEditarCertificado(cert)}
+                        disabled={salvandoCertificado}
                       >
                         <EditIcon />
                       </button>
                       <button 
                         className="btn-action btn-delete"
                         title="Excluir certificado"
-                        onClick={() => console.log('Excluir certificado', cert)}
+                        onClick={() => handleExcluirCertificado(cert)}
+                        disabled={salvandoCertificado}
                       >
                         <DeleteIcon />
                       </button>
@@ -385,6 +614,179 @@ function VisualizarAvaliador() {
           <XIcon /> Voltar
         </button>
       </div>
+
+      {/* Modal de Adicionar Certificado */}
+      {showModalCertificado && (
+        <div className="modal-overlay" onClick={handleFecharModalCertificado}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Adicionar Novo Certificado</h3>
+              <button 
+                className="modal-close" 
+                onClick={handleFecharModalCertificado}
+                disabled={salvandoCertificado}
+              >
+                <XIcon />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAdicionarCertificado}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label htmlFor="treinamento_cod">Treinamento *</label>
+                  <select
+                    id="treinamento_cod"
+                    name="treinamento_cod"
+                    value={novoCertificado.treinamento_cod}
+                    onChange={handleInputChangeCertificado}
+                    className="form-input"
+                    required
+                    disabled={salvandoCertificado}
+                  >
+                    <option value="">Selecione um treinamento</option>
+                    {treinamentos.map(treinamento => (
+                      <option key={treinamento.cod_treinamento} value={treinamento.cod_treinamento}>
+                        {treinamento.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="n_certificado">Número do Certificado *</label>
+                  <input
+                    type="text"
+                    id="n_certificado"
+                    name="n_certificado"
+                    value={novoCertificado.n_certificado}
+                    onChange={handleInputChangeCertificado}
+                    className="form-input"
+                    placeholder="Ex: CERT-2024-001"
+                    required
+                    disabled={salvandoCertificado}
+                  />
+                </div>
+              </div>
+              
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleFecharModalCertificado}
+                  disabled={salvandoCertificado}
+                >
+                  <XIcon /> Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={salvandoCertificado}
+                >
+                  {salvandoCertificado ? (
+                    <>
+                      <div className="spinner-small"></div>
+                      Adicionando...
+                    </>
+                  ) : (
+                    <>
+                      <SaveIcon /> Adicionar Certificado
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Editar Certificado */}
+      {showModalEditarCertificado && certificadoEditando && (
+        <div className="modal-overlay" onClick={handleFecharModalEditar}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Editar Certificado</h3>
+              <button 
+                className="modal-close" 
+                onClick={handleFecharModalEditar}
+                disabled={salvandoCertificado}
+              >
+                <XIcon />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSalvarEdicaoCertificado}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label htmlFor="treinamento_edit">Treinamento</label>
+                  <input
+                    type="text"
+                    id="treinamento_edit"
+                    value={certificadoEditando.nome_treinamento}
+                    className="form-input"
+                    disabled
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="n_certificado_edit">Número do Certificado *</label>
+                  <input
+                    type="text"
+                    id="n_certificado_edit"
+                    name="n_certificado"
+                    value={certificadoEditado.n_certificado}
+                    onChange={(e) => setCertificadoEditado({ ...certificadoEditado, n_certificado: e.target.value })}
+                    className="form-input"
+                    placeholder="Ex: CERT-2024-001"
+                    required
+                    disabled={salvandoCertificado}
+                  />
+                </div>
+              </div>
+              
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleFecharModalEditar}
+                  disabled={salvandoCertificado}
+                >
+                  <XIcon /> Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={salvandoCertificado}
+                >
+                  {salvandoCertificado ? (
+                    <>
+                      <div className="spinner-small"></div>
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <SaveIcon /> Salvar Alterações
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmar Exclusão */}
+      <ConfirmModal
+        isOpen={showModalExcluir}
+        title="Excluir Certificado"
+        message={`Tem certeza que deseja excluir o certificado "${certificadoExcluir?.nome_treinamento}"? Esta ação não pode ser desfeita.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        onConfirm={handleConfirmarExclusao}
+        onClose={() => {
+          setShowModalExcluir(false)
+          setCertificadoExcluir(null)
+        }}
+      />
 
       <Toast
         show={toast.show}
@@ -590,6 +992,45 @@ function VisualizarAvaliador() {
           gap: 8px;
         }
 
+        .btn-action {
+          background: #f8f8f8;
+          border: 2px solid #e0e0e0;
+          border-radius: 8px;
+          padding: 8px 12px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #666;
+        }
+
+        .btn-action:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .btn-action svg {
+          width: 16px;
+          height: 16px;
+        }
+
+        .btn-action:hover:not(:disabled) {
+          transform: translateY(-1px);
+        }
+
+        .btn-edit:hover:not(:disabled) {
+          background: #4caf50;
+          border-color: #388e3c;
+          color: white;
+        }
+
+        .btn-delete:hover:not(:disabled) {
+          background: #f44336;
+          border-color: #d32f2f;
+          color: white;
+        }
+
         .btn-sm {
           padding: 8px 16px;
           font-size: 14px;
@@ -651,6 +1092,117 @@ function VisualizarAvaliador() {
           .floating-actions button {
             width: auto;
           }
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 2000;
+          animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        .modal-content {
+          background: white;
+          border-radius: 12px;
+          width: 90%;
+          max-width: 600px;
+          max-height: 90vh;
+          overflow-y: auto;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+          from {
+            transform: translateY(30px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 25px 30px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+
+        .modal-header h3 {
+          margin: 0;
+          font-size: 20px;
+          font-weight: 600;
+          color: #1f2937;
+        }
+
+        .modal-close {
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #6b7280;
+          transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+          color: #1f2937;
+        }
+
+        .modal-close:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .modal-body {
+          padding: 30px;
+        }
+
+        .modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          padding: 20px 30px;
+          border-top: 1px solid #e5e7eb;
+          background: #f9fafb;
+        }
+
+        .spinner-small {
+          width: 16px;
+          height: 16px;
+          border: 2px solid transparent;
+          border-top: 2px solid currentColor;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          display: inline-block;
+          margin-right: 8px;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
       `}</style>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SaveIcon, XIcon, UserIcon, SearchIcon } from '../common/Icons'
 import Toast from '../common/Toast'
@@ -9,6 +9,7 @@ function CadastrarAvaliador() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
+  const isInitialMount = useRef(true)
   
   // Estado do Toast
   const [toast, setToast] = useState({
@@ -27,10 +28,7 @@ function CadastrarAvaliador() {
   // Estados para cadastro do certificado
   const [certificado, setCertificado] = useState({
     treinamento_cod: '',
-    n_certificado: '',
-    data_realizacao: '',
-    validade: '',
-    local: ''
+    n_certificado: ''
   })
   
   // Estados para treinamentos disponíveis
@@ -38,8 +36,23 @@ function CadastrarAvaliador() {
 
   useEffect(() => {
     carregarTreinamentos()
-    carregarFuncionarios()
+    carregarFuncionarios('')
+    isInitialMount.current = false
   }, [])
+
+  // Buscar funcionários quando o termo de busca mudar (com debounce)
+  useEffect(() => {
+    // Não buscar na primeira renderização (já foi carregado acima)
+    if (isInitialMount.current) {
+      return
+    }
+
+    const timeoutId = setTimeout(() => {
+      carregarFuncionarios(searchTerm.trim())
+    }, 500) // Debounce de 500ms
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm])
 
   const carregarTreinamentos = async () => {
     try {
@@ -50,16 +63,29 @@ function CadastrarAvaliador() {
     }
   }
 
-  const carregarFuncionarios = async () => {
+  const carregarFuncionarios = async (termoBusca = '') => {
     try {
       setLoadingFuncionarios(true)
-      const dados = await api.getFuncionarios()
-      // Filtrar apenas funcionários ATIVOS que NÃO possuem certificados
-      const funcionariosAtivos = dados.filter(func => func.status === 'Ativo')
+      setError(null)
+      
+      // Buscar funcionários ativos, com busca opcional
+      // Usar um per_page alto para buscar todos os ativos de uma vez
+      const response = await api.getFuncionarios('Ativo', null, 1, 10000, termoBusca)
+      
+      // O endpoint retorna { funcionarios: [], pagination: {} }
+      const funcionariosList = response.funcionarios || response || []
+      
+      // Garantir que são apenas ativos (filtro adicional de segurança)
+      const funcionariosAtivos = Array.isArray(funcionariosList) 
+        ? funcionariosList.filter(func => func.status === 'Ativo')
+        : []
+      
       setFuncionarios(funcionariosAtivos)
     } catch (err) {
       console.error('Erro ao carregar funcionários:', err)
-      setError('Erro ao carregar funcionários')
+      const errorMessage = err.response?.data?.error || err.message || 'Erro ao carregar funcionários'
+      setError(errorMessage)
+      setFuncionarios([])
     } finally {
       setLoadingFuncionarios(false)
     }
@@ -141,14 +167,8 @@ function CadastrarAvaliador() {
     setToast(prev => ({ ...prev, show: false }))
   }
 
-  const filteredFuncionarios = funcionarios.filter(funcionario => {
-    const searchLower = searchTerm.toLowerCase()
-    return (
-      funcionario.nome?.toLowerCase().includes(searchLower) ||
-      funcionario.email?.toLowerCase().includes(searchLower) ||
-      funcionario.setor?.toLowerCase().includes(searchLower)
-    )
-  })
+  // Não precisa mais filtrar localmente, a busca já é feita no backend
+  const filteredFuncionarios = funcionarios
 
   return (
     <div className="page-container">
@@ -317,45 +337,6 @@ function CadastrarAvaliador() {
                         required
                       />
                     </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="data_realizacao">Data de Realização</label>
-                      <input
-                        type="date"
-                        id="data_realizacao"
-                        name="data_realizacao"
-                        value={certificado.data_realizacao}
-                        onChange={handleInputChange}
-                        className="form-input"
-                      />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label htmlFor="validade">Data de Validade</label>
-                      <input
-                        type="date"
-                        id="validade"
-                        name="validade"
-                        value={certificado.validade}
-                        onChange={handleInputChange}
-                        className="form-input"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="local">Local do Treinamento</label>
-                    <input
-                      type="text"
-                      id="local"
-                      name="local"
-                      value={certificado.local}
-                      onChange={handleInputChange}
-                      className="form-input"
-                      placeholder="Ex: Sala de Treinamento - São Paulo"
-                    />
                   </div>
 
                   {/* Botões de Ação */}
