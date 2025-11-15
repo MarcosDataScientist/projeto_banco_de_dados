@@ -89,11 +89,18 @@ def get_perguntas():
     try:
         categoria = request.args.get('categoria', type=int)
         ativa_param = request.args.get('ativa')
+        busca = request.args.get('q') or request.args.get('busca')
+        tipo = request.args.get('tipo')  # Filtro de tipo: 'Múltipla Escolha', 'Texto Livre', ou None
         
         # Converter parâmetro ativa para status
         status = None
         if ativa_param is not None:
             status = 'Ativo' if ativa_param.lower() == 'true' else 'Inativo'
+        
+        # Validar tipo
+        filtro_tipo = None
+        if tipo and tipo.lower() not in ['todos', 'all', '']:
+            filtro_tipo = tipo
         
         # Parâmetros de paginação
         page = request.args.get('page', 1, type=int)
@@ -102,13 +109,16 @@ def get_perguntas():
         # Validar parâmetros
         if page < 1:
             page = 1
-        if per_page < 1 or per_page > 100:
+        if per_page < 1:
             per_page = 10
+        elif per_page > 10000:
+            per_page = 10000
         
         # Buscar perguntas com paginação
         perguntas, total = PerguntasModel.listar_com_paginacao(
-            filtro_tipo=None,  # Não filtrar por tipo por enquanto
-            filtro_status=status, 
+            filtro_tipo=filtro_tipo,
+            filtro_status=status,
+            filtro_busca=busca,
             page=page, 
             per_page=per_page
         )
@@ -210,12 +220,38 @@ def atualizar_pergunta(pergunta_id):
 def deletar_pergunta(pergunta_id):
     """Deleta uma pergunta"""
     try:
+        # Verificar se a pergunta existe
+        pergunta = PerguntasModel.buscar_por_id(pergunta_id)
+        if not pergunta:
+            return jsonify({'error': 'Pergunta não encontrada'}), 404
+        
+        # Verificar se está sendo usada em respostas (RESTRICT no banco já bloqueia, mas vamos avisar antes)
+        total_respostas = PerguntasModel.verificar_uso_em_respostas(pergunta_id)
+        if total_respostas > 0:
+            return jsonify({
+                'error': f'Não é possível excluir esta pergunta. Ela está sendo usada em {total_respostas} resposta(s) de avaliação(ões).'
+            }), 400
+        
+        # Verificar se está sendo usada em formulários
+        total_formularios = PerguntasModel.verificar_uso_em_formularios(pergunta_id)
+        if total_formularios > 0:
+            return jsonify({
+                'error': f'Não é possível excluir esta pergunta. Ela está associada a {total_formularios} formulário(s). Remova a pergunta dos formulários antes de excluí-la.'
+            }), 400
+        
+        # Se passou todas as validações, deletar
         linhas = PerguntasModel.deletar(pergunta_id)
         if linhas == 0:
             return jsonify({'error': 'Pergunta não encontrada'}), 404
         
         return jsonify({'message': 'Pergunta deletada com sucesso'}), 200
     except Exception as e:
+        # Capturar erro de constraint do banco (caso a validação não tenha pego)
+        error_msg = str(e)
+        if 'restrict' in error_msg.lower() or 'violates foreign key constraint' in error_msg.lower():
+            return jsonify({
+                'error': 'Não é possível excluir esta pergunta. Ela está sendo usada em formulários ou respostas.'
+            }), 400
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/categorias', methods=['GET'])
@@ -425,6 +461,24 @@ def get_avaliacao(avaliacao_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/avaliacoes/<int:avaliacao_id>', methods=['DELETE'])
+def deletar_avaliacao(avaliacao_id):
+    """Deleta uma avaliação"""
+    try:
+        # Verificar se a avaliação existe
+        avaliacao = AvaliacoesModel.buscar_por_id(avaliacao_id)
+        if not avaliacao:
+            return jsonify({'error': 'Avaliação não encontrada'}), 404
+        
+        # Deletar avaliação (as respostas serão deletadas em cascata)
+        linhas = AvaliacoesModel.deletar(avaliacao_id)
+        if linhas == 0:
+            return jsonify({'error': 'Avaliação não encontrada'}), 404
+        
+        return jsonify({'message': 'Avaliação deletada com sucesso'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/avaliacoes', methods=['POST'])
 def criar_avaliacao():
     """Cria uma nova avaliação"""
@@ -616,11 +670,8 @@ def atualizar_questionario(questionario_id):
 @app.route('/api/questionarios/<int:questionario_id>', methods=['DELETE'])
 def deletar_questionario(questionario_id):
     """
-    Deleta um questionário e todos os dados relacionados em cascata:
-    1. Respostas das avaliações que usaram o questionário
-    2. Avaliações que usaram o questionário
-    3. Vínculos com perguntas (Questionario_Questao)
-    4. O questionário em si
+    Deleta um questionário APENAS se não estiver associado a avaliações.
+    Se houver avaliações associadas, retorna erro informativo.
     """
     try:
         resultado = QuestionariosModel.deletar_com_cascata(questionario_id)
@@ -631,10 +682,21 @@ def deletar_questionario(questionario_id):
                 'detalhes': resultado
             }), 200
         else:
-            return jsonify({'error': 'Questionário não encontrado'}), 404
+            # Se não foi bem-sucedido, verificar o motivo
+            error_message = resultado.get('mensagem', 'Erro ao deletar questionário')
+            if 'avaliação' in error_message.lower() or 'avaliacoes' in error_message.lower():
+                return jsonify({'error': error_message}), 400
+            else:
+                return jsonify({'error': error_message}), 404
             
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        error_msg = str(e)
+        # Verificar se o erro é de constraint RESTRICT
+        if 'restrict' in error_msg.lower() or 'violates foreign key constraint' in error_msg.lower():
+            return jsonify({
+                'error': 'Não é possível excluir este questionário. Ele está sendo usado em avaliações.'
+            }), 400
+        return jsonify({'error': error_msg}), 500
 
 @app.route('/api/classificacoes', methods=['GET'])
 def get_classificacoes():

@@ -5,6 +5,8 @@ import { Routes, Route } from 'react-router-dom'
 import Home from '../components/Home'
 import Perguntas from '../components/Perguntas'
 import Questionarios from '../components/Questionarios/Questionarios'
+import CadastrarQuestionario from '../components/Questionarios/CadastrarQuestionario'
+import EditarQuestionario from '../components/Questionarios/EditarQuestionario'
 import Funcionarios from '../components/Funcionarios'
 import Avaliacao from '../components/Avaliacao/Avaliacao'
 import NovaAvaliacao from '../components/Avaliacao/NovaAvaliacao'
@@ -23,6 +25,8 @@ const AppRoutes = () => {
         <Route path="dashboard" element={<Home />} />
         <Route path="perguntas" element={<Perguntas />} />
         <Route path="questionarios" element={<Questionarios />} />
+        <Route path="questionarios/novo" element={<CadastrarQuestionario />} />
+        <Route path="questionarios/editar/:id" element={<EditarQuestionario />} />
         <Route path="funcionarios" element={<Funcionarios />} />
         <Route path="avaliacoes" element={<Avaliacao />} />
         <Route path="avaliacoes/nova" element={<NovaAvaliacao />} />

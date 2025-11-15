@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { CheckIcon, SearchIcon, XIcon } from '../common/Icons'
 import api from '../../services/api'
 
-function CadastrarQuestionario() {
+function EditarQuestionario() {
   const navigate = useNavigate()
+  const { id } = useParams()
   const [formData, setFormData] = useState({
     nome: '',
     tipo: '',
@@ -27,7 +28,7 @@ function CadastrarQuestionario() {
   useEffect(() => {
     carregarDados()
     isInitialMount.current = false
-  }, [])
+  }, [id])
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -42,15 +43,44 @@ function CadastrarQuestionario() {
   const carregarDados = async () => {
     try {
       setLoadingData(true)
-      const [classificacoesData] = await Promise.all([
-        api.getClassificacoes(),
-        carregarPerguntas('', 'Todos'), // Carregar todas as perguntas ativas
-        carregarPerguntasTotal() // Carregar total sem filtros
+      setError(null)
+      
+      // Carregar questionário (que já vem com perguntas) e classificações
+      const [questionarioData, classificacoesData] = await Promise.all([
+        api.getQuestionario(id),
+        api.getClassificacoes()
       ])
+      
       setClassificacoes(Array.isArray(classificacoesData) ? classificacoesData : [])
+      
+      // Preencher dados do questionário
+      if (questionarioData) {
+        setFormData({
+          nome: questionarioData.titulo || '',
+          tipo: questionarioData.tipo || '',
+          classificacao_cod: questionarioData.classificacao_id || '',
+          status: questionarioData.status || 'Ativo'
+        })
+        
+        // Preencher perguntas já selecionadas
+        if (questionarioData.perguntas && Array.isArray(questionarioData.perguntas)) {
+          const idsPerguntas = questionarioData.perguntas.map(p => {
+            // O backend retorna 'id' mas pode ser 'cod_questao' também
+            return p.id || p.cod_questao || p.questao_cod
+          }).filter(id => id !== undefined && id !== null)
+          setPerguntasSelecionadas(idsPerguntas)
+        }
+      }
+      
+      // Carregar todas as perguntas disponíveis
+      await Promise.all([
+        carregarPerguntas('', 'Todos'),
+        carregarPerguntasTotal()
+      ])
+      
     } catch (err) {
       console.error('Erro ao carregar dados:', err)
-      setError('Erro ao carregar dados necessários')
+      setError('Erro ao carregar dados do questionário. Tente novamente.')
     } finally {
       setLoadingData(false)
     }
@@ -117,6 +147,7 @@ function CadastrarQuestionario() {
     }
   }
 
+
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -164,24 +195,23 @@ function CadastrarQuestionario() {
         questoes_ids: perguntasSelecionadas
       }
 
-      const resultado = await api.criarQuestionario(dados)
+      const resultado = await api.atualizarQuestionario(id, dados)
       
       // Redirecionar de volta para a lista de formulários com mensagem de sucesso
-      navigate('/questionarios?success=created&nome=' + encodeURIComponent(dados.nome))
+      navigate('/questionarios?success=updated&nome=' + encodeURIComponent(dados.nome))
     } catch (err) {
-      console.error('Erro ao criar questionário:', err)
-      setError(err.message || 'Erro ao criar questionário')
+      console.error('Erro ao atualizar questionário:', err)
+      setError(err.message || 'Erro ao atualizar questionário')
     } finally {
       setLoading(false)
     }
   }
 
-
   if (loadingData) {
     return (
       <div className="page-container">
         <div className="page-header">
-          <h2>Novo Formulário</h2>
+          <h2>Editar Formulário</h2>
           <p>Carregando dados...</p>
         </div>
       </div>
@@ -191,9 +221,8 @@ function CadastrarQuestionario() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h2>Novo Formulário</h2>
+        <h2>Editar Formulário</h2>
       </div>
-
 
       <form onSubmit={handleSubmit} className="form-container">
         {error && (
@@ -387,31 +416,34 @@ function CadastrarQuestionario() {
                   {searchTerm ? 'Nenhuma pergunta encontrada' : 'Nenhuma pergunta disponível'}
                 </p>
               ) : (
-                perguntas.map(pergunta => (
-                  <div
-                    key={pergunta.cod_questao}
-                    className={`pergunta-item ${perguntasSelecionadas.includes(pergunta.cod_questao) ? 'selected' : ''}`}
-                    onClick={() => togglePergunta(pergunta.cod_questao)}
-                  >
-                    <div className="pergunta-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={perguntasSelecionadas.includes(pergunta.cod_questao)}
-                        onChange={(e) => {
-                          e.stopPropagation()
-                          togglePergunta(pergunta.cod_questao)
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                perguntas.map(pergunta => {
+                  const perguntaId = pergunta.cod_questao || pergunta.id
+                  return (
+                    <div
+                      key={perguntaId}
+                      className={`pergunta-item ${perguntasSelecionadas.includes(perguntaId) ? 'selected' : ''}`}
+                      onClick={() => togglePergunta(perguntaId)}
+                    >
+                      <div className="pergunta-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={perguntasSelecionadas.includes(perguntaId)}
+                          onChange={(e) => {
+                            e.stopPropagation()
+                            togglePergunta(perguntaId)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="pergunta-content">
+                        <p className="pergunta-texto">{pergunta.texto_questao}</p>
+                        <span className="pergunta-tipo badge badge-default">
+                          {pergunta.tipo_questao}
+                        </span>
+                      </div>
                     </div>
-                    <div className="pergunta-content">
-                      <p className="pergunta-texto">{pergunta.texto_questao}</p>
-                      <span className="pergunta-tipo badge badge-default">
-                        {pergunta.tipo_questao}
-                      </span>
-                    </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </div>
@@ -431,9 +463,9 @@ function CadastrarQuestionario() {
             className="btn-primary"
             disabled={loading}
           >
-            {loading ? 'Criando...' : (
+            {loading ? 'Salvando...' : (
               <>
-                <CheckIcon /> Criar Formulário
+                <CheckIcon /> Salvar Alterações
               </>
             )}
           </button>
@@ -443,4 +475,5 @@ function CadastrarQuestionario() {
   )
 }
 
-export default CadastrarQuestionario
+export default EditarQuestionario
+
