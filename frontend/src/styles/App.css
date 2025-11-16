@@ -90,6 +90,12 @@ body {
   gap: 12px;
 }
 
+.logo-image {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
 .logo-icon {
   width: 32px;
   height: 32px;
@@ -120,6 +126,86 @@ body {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.theme-toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-icon {
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: #666;
+  transition: color 0.3s ease;
+}
+
+.theme-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dark-theme .theme-icon {
+  color: #e0e0e0;
+}
+
+.theme-toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.theme-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.theme-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #d0d0d0;
+  transition: 0.3s;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 2px;
+}
+
+.theme-toggle-slider::before {
+  content: "";
+  position: absolute;
+  height: 24px;
+  width: 24px;
+  right: 2px;
+  bottom: 2px;
+  background-color: #ffffff;
+  transition: 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.theme-toggle-switch input:checked + .theme-toggle-slider {
+  background-color: #4a4a4a;
+  justify-content: flex-start;
+}
+
+.theme-toggle-switch input:checked + .theme-toggle-slider::before {
+  right: auto;
+  left: 2px;
+  transform: translateX(0);
 }
 
 .navbar-user-container {
@@ -3725,19 +3811,6 @@ input:checked + .toggle-slider:before {
 .status-badge.badge-default {
   background-color: #e2e3e5;
   color: #6c757d;
-}
-
-/* ==========================================
-   BOTÃO DE VISUALIZAR
-   ========================================== */
-
-.btn-view {
-  background-color: #17a2b8;
-  color: white;
-}
-
-.btn-view:hover {
-  background-color: #138496;
 }
 
 /* ==========================================

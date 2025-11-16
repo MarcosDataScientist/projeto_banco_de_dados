@@ -1,21 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState } from 'react'
 import {
   DashboardIcon,
   QuestionsIcon,
   FormsIcon,
   UsersIcon,
   ReportsIcon,
-  BellIcon,
-  SettingsIcon,
-  LogOutIcon,
   AvaliadoresIcon,
   AvaliacaoIcon
 } from './Icons'
 
 function Navbar({ currentPage, setCurrentPage }) {
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [isDarkTheme, setIsDarkTheme] = useState(false)
-  const dropdownRef = useRef(null)
   
   const menuItems = [
     { id: 'avaliacoes', label: 'Avaliação', icon: <AvaliacaoIcon /> },
@@ -27,58 +22,19 @@ function Navbar({ currentPage, setCurrentPage }) {
     { id: 'relatorios', label: 'Relatórios', icon: <ReportsIcon /> }
   ]
 
-  const userMenuItems = [
-    { id: 'profile', label: 'Perfil', icon: <UsersIcon /> },
-    { id: 'configuracoes', label: 'Configurações', icon: <SettingsIcon /> },
-    { id: 'theme', label: 'Tema Escuro', icon: null, isToggle: true },
-    { id: 'logout', label: 'Sair', icon: <LogOutIcon /> }
-  ]
-
-  const handleUserMenuToggle = () => {
-    setIsUserMenuOpen(!isUserMenuOpen)
+  const handleThemeToggle = () => {
+    const newTheme = !isDarkTheme
+    setIsDarkTheme(newTheme)
+    // Aplicar tema ao body
+    document.body.classList.toggle('dark-theme', newTheme)
   }
-
-  const handleUserMenuItemClick = (itemId) => {
-    if (itemId === 'logout') {
-      // Lógica para logout
-      console.log('Logout clicked')
-    } else if (itemId === 'theme') {
-      // Toggle do tema escuro
-      const newTheme = !isDarkTheme
-      setIsDarkTheme(newTheme)
-      // Aplicar tema ao body
-      document.body.classList.toggle('dark-theme', newTheme)
-    } else {
-      setCurrentPage(itemId)
-    }
-    if (itemId !== 'theme') {
-      setIsUserMenuOpen(false)
-    }
-  }
-
-  // Fechar dropdown ao clicar fora
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsUserMenuOpen(false)
-      }
-    }
-
-    if (isUserMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isUserMenuOpen])
 
   return (
     <nav className="navbar">
       <div className="navbar-container">
         <div className="logo">
-          <div className="logo-icon">S</div>
-          <h1>SADEF</h1>
+          <img src="/favicon.png" alt="Logo" className="logo-image" />
+          <h1>Lutica Beregula<br />system</h1>
         </div>
         
         <ul className="nav-menu">
@@ -96,51 +52,33 @@ function Navbar({ currentPage, setCurrentPage }) {
         </ul>
 
         <div className="navbar-right">
-          <button className="notification-icon">
-            <BellIcon />
-          </button>
-          <div className="navbar-user-container" ref={dropdownRef}>
-            <div className="navbar-user" onClick={handleUserMenuToggle}>
-              <div className="user-avatar">U</div>
-              <span className="user-name">Olá, Usuário</span>
-            </div>
-            
-            {isUserMenuOpen && (
-              <div className="user-dropdown">
-                <div className="user-dropdown-header">
-                  <div className="user-dropdown-avatar">U</div>
-                  <div className="user-dropdown-info">
-                    <span className="user-dropdown-name">Usuário Sistema</span>
-                    <span className="user-dropdown-email">usuario@sistema.com</span>
-                  </div>
-                </div>
-                <div className="user-dropdown-divider"></div>
-                {userMenuItems.map(item => (
-                  item.isToggle ? (
-                    <div key={item.id} className="user-dropdown-item user-dropdown-toggle">
-                      <span className="user-dropdown-label">{item.label}</span>
-                      <label className="toggle-switch">
-                        <input
-                          type="checkbox"
-                          checked={isDarkTheme}
-                          onChange={() => handleUserMenuItemClick(item.id)}
-                        />
-                        <span className="toggle-slider"></span>
-                      </label>
-                    </div>
-                  ) : (
-                    <button
-                      key={item.id}
-                      className="user-dropdown-item"
-                      onClick={() => handleUserMenuItemClick(item.id)}
-                    >
-                      <span className="user-dropdown-icon">{item.icon}</span>
-                      <span className="user-dropdown-label">{item.label}</span>
-                    </button>
-                  )
-                ))}
-              </div>
-            )}
+          <div className="theme-toggle-container">
+            <span className="theme-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            </span>
+            <label className="theme-toggle-switch">
+              <input
+                type="checkbox"
+                checked={isDarkTheme}
+                onChange={handleThemeToggle}
+              />
+              <span className="theme-toggle-slider"></span>
+            </label>
+            <span className="theme-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+              </svg>
+            </span>
           </div>
         </div>
       </div>
