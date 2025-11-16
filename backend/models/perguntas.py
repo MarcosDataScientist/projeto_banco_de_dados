@@ -260,7 +260,8 @@ class PerguntasModel:
             RETURNING questao_cod
         """
         
-        return execute_query(query, (questao_cod, opcoes_json))
+        # Usar fetch=False para fazer commit da inserção
+        return execute_query(query, (questao_cod, opcoes_json), fetch=False)
     
     @staticmethod
     def criar_questao_texto_livre(questao_cod):
@@ -271,7 +272,8 @@ class PerguntasModel:
             RETURNING questao_cod
         """
         
-        return execute_query(query, (questao_cod,))
+        # Usar fetch=False para fazer commit da inserção
+        return execute_query(query, (questao_cod,), fetch=False)
     
     @staticmethod
     def atualizar(questao_id, texto_questao=None, tipo_questao=None, status=None):

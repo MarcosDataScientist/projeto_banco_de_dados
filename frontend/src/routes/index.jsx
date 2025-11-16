@@ -2,20 +2,19 @@ import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 
 // Importar componentes das páginas
-import Home from '../components/Home'
-import Perguntas from '../components/Perguntas'
+import Home from '../components/common/Home'
+import Perguntas from '../components/Perguntas/Perguntas'
 import Questionarios from '../components/Questionarios/Questionarios'
 import CadastrarQuestionario from '../components/Questionarios/CadastrarQuestionario'
 import EditarQuestionario from '../components/Questionarios/EditarQuestionario'
-import Funcionarios from '../components/Funcionarios'
+import Funcionarios from '../components/Funcionarios/Funcionarios'
 import Avaliacao from '../components/Avaliacao/Avaliacao'
 import NovaAvaliacao from '../components/Avaliacao/NovaAvaliacao'
-import Relatorios from '../components/Relatorios'
-import Configuracoes from '../components/Configuracoes'
-import NotFound from '../components/NotFound'
+import Relatorios from '../components/Relatorios/Relatorios'
+import NotFound from '../components/common/NotFound'
 
 // Componente de layout que inclui a navbar
-import Layout from '../components/Layout'
+import Layout from '../components/common/Layout'
 
 const AppRoutes = () => {
   return (
@@ -31,7 +30,6 @@ const AppRoutes = () => {
         <Route path="avaliacoes" element={<Avaliacao />} />
         <Route path="avaliacoes/nova" element={<NovaAvaliacao />} />
         <Route path="relatorios" element={<Relatorios />} />
-        <Route path="configuracoes" element={<Configuracoes />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

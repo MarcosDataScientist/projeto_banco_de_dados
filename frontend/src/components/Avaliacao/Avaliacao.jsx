@@ -215,7 +215,6 @@ function Avaliacao() {
     <div className="page-container">
       <div className="page-header">
         <h2>Listagem de Avaliações</h2>
-        <p>Gerencie e acompanhe as avaliações de desligamento</p>
       </div>
 
       <div className="dashboard-layout">
@@ -297,11 +296,6 @@ function Avaliacao() {
                         <span className={`badge ${getStatusBadgeColor(avaliacao.rating)}`}>
                           {getStatusText(avaliacao.rating)}
                         </span>
-                        {avaliacao.rating !== null && avaliacao.rating !== undefined && (
-                          <span className="badge badge-default">
-                            Nota: {avaliacao.rating}
-                          </span>
-                        )}
                       </div>
                     </div>
                     <p className="item-description">

@@ -17,7 +17,6 @@ import NovaAvaliacao from './components/Avaliacao/NovaAvaliacao'
 import EditarAvaliacao from './components/Avaliacao/EditarAvaliacao'
 import PreencherAvaliacao from './components/Avaliacao/PreencherAvaliacao'
 import Relatorios from './components/Relatorios/Relatorios'
-import Configuracoes from './components/Configuracoes/Configuracoes'
 import NotFound from './components/common/NotFound'
 
 function App() {
@@ -42,7 +41,6 @@ function App() {
           <Route path="avaliacoes/:id/preencher" element={<PreencherAvaliacao />} />
           <Route path="avaliacoes" element={<Avaliacao />} />
           <Route path="relatorios" element={<Relatorios />} />
-          <Route path="configuracoes" element={<Configuracoes />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
