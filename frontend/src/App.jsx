@@ -6,6 +6,7 @@ import Perguntas from './components/Perguntas/Perguntas'
 import EditarPergunta from './components/Perguntas/EditarPergunta'
 import Questionarios from './components/Questionarios/Questionarios'
 import CadastrarQuestionario from './components/Questionarios/CadastrarQuestionario'
+import EditarQuestionario from './components/Questionarios/EditarQuestionario'
 import Funcionarios from './components/Funcionarios/Funcionarios'
 import EditarFuncionario from './components/Funcionarios/EditarFuncionario'
 import Avaliadores from './components/Avaliadores/Avaliadores'
@@ -29,6 +30,7 @@ function App() {
           <Route path="perguntas/editar/:id" element={<EditarPergunta />} />
           <Route path="questionarios" element={<Questionarios />} />
           <Route path="questionarios/novo" element={<CadastrarQuestionario />} />
+          <Route path="questionarios/editar/:id" element={<EditarQuestionario />} />
           <Route path="funcionarios" element={<Funcionarios />} />
           <Route path="funcionarios/editar/:id" element={<EditarFuncionario />} />
           <Route path="avaliadores" element={<Avaliadores />} />
