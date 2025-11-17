@@ -51,6 +51,14 @@ function CadastrarPergunta({ isOpen, onClose, onSuccess }) {
       ...prev,
       opcoes: novasOpcoes
     }))
+    
+    // Limpar erro de opções quando o usuário começar a preencher
+    if (errors.opcoes && value.trim() !== '') {
+      setErrors(prev => ({
+        ...prev,
+        opcoes: ''
+      }))
+    }
   }
 
   const adicionarOpcao = () => {
@@ -86,15 +94,23 @@ function CadastrarPergunta({ isOpen, onClose, onSuccess }) {
     }
 
     if (formData.tipo === 'Múltipla Escolha') {
-      const opcoesValidas = formData.opcoes.filter(opcao => opcao.trim() !== '')
-      if (opcoesValidas.length < 2) {
-        newErrors.opcoes = 'Múltipla escolha deve ter pelo menos 2 opções'
-      }
+      // Verificar se todas as opções disponíveis estão preenchidas
+      const opcoesVazias = formData.opcoes.filter(opcao => opcao.trim() === '')
       
-      // Verificar se há opções duplicadas
-      const opcoesUnicas = [...new Set(opcoesValidas)]
-      if (opcoesUnicas.length !== opcoesValidas.length) {
-        newErrors.opcoes = 'Não é possível ter opções duplicadas'
+      if (opcoesVazias.length > 0) {
+        newErrors.opcoes = 'Todas as opções disponíveis devem ser preenchidas. Não é permitido deixar opções em branco.'
+      } else {
+        // Verificar quantidade mínima
+        if (formData.opcoes.length < 2) {
+          newErrors.opcoes = 'Múltipla escolha deve ter pelo menos 2 opções'
+        }
+        
+        // Verificar se há opções duplicadas
+        const opcoesValidas = formData.opcoes.map(opcao => opcao.trim())
+        const opcoesUnicas = [...new Set(opcoesValidas)]
+        if (opcoesUnicas.length !== opcoesValidas.length) {
+          newErrors.opcoes = 'Não é possível ter opções duplicadas'
+        }
       }
     }
 
@@ -118,10 +134,11 @@ function CadastrarPergunta({ isOpen, onClose, onSuccess }) {
         status: formData.status
       }
 
-      // Se for múltipla escolha, incluir opções válidas
+      // Se for múltipla escolha, incluir opções válidas (já validadas, mas garantimos trim)
       if (formData.tipo === 'Múltipla Escolha') {
-        const opcoesValidas = formData.opcoes.filter(opcao => opcao.trim() !== '')
-        dadosParaEnvio.opcoes = opcoesValidas
+        dadosParaEnvio.opcoes = formData.opcoes
+          .map(opcao => opcao.trim())
+          .filter(opcao => opcao !== '') // Filtro de segurança adicional
       }
 
       await api.criarPergunta(dadosParaEnvio)
@@ -240,7 +257,7 @@ function CadastrarPergunta({ isOpen, onClose, onSuccess }) {
                       type="text"
                       value={opcao}
                       onChange={(e) => handleOpcaoChange(index, e.target.value)}
-                      className="form-input opcao-input"
+                      className={`form-input opcao-input ${errors.opcoes && opcao.trim() === '' ? 'error' : ''}`}
                       placeholder={`Opção ${index + 1}`}
                     />
                     {formData.opcoes.length > 2 && (

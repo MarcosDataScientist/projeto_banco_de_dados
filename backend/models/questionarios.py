@@ -59,10 +59,13 @@ class QuestionariosModel:
             q.tipo,
             q.status,
             c.nome as classificacao,
-            c.cod_classificacao as classificacao_id
+            c.cod_classificacao as classificacao_id,
+            COALESCE(COUNT(DISTINCT a.cod_avaliacao), 0) as total_aplicacoes
         FROM Questionario q
         LEFT JOIN Classificacao c ON q.classificacao_cod = c.cod_classificacao
+        LEFT JOIN Avaliacao a ON q.cod_questionario = a.questionario_cod
         WHERE q.cod_questionario = %s
+        GROUP BY q.cod_questionario, q.nome, q.tipo, q.status, c.nome, c.cod_classificacao
         """
         
         conn = Database.get_connection()

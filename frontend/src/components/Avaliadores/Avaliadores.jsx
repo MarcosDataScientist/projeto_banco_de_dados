@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SearchIcon, PlusIcon, EditIcon, DeleteIcon, UserIcon, EyeIcon } from '../common/Icons'
+import { SearchIcon, PlusIcon, UserIcon, EyeIcon } from '../common/Icons'
 import api from '../../services/api'
 
 function Avaliadores() {
@@ -30,14 +30,6 @@ function Avaliadores() {
 
   const handleViewClick = (avaliador) => {
     navigate(`/avaliadores/visualizar/${avaliador.cpf}`)
-  }
-
-  const handleEditClick = (avaliador) => {
-    navigate(`/avaliadores/visualizar/${avaliador.cpf}`)
-  }
-
-  const handleDeleteClick = (avaliador) => {
-    console.log('Deletar avaliador:', avaliador)
   }
 
   const filteredAvaliadores = avaliadores.filter(avaliador => {
@@ -176,20 +168,6 @@ function Avaliadores() {
                     onClick={() => handleViewClick(avaliador)}
                   >
                     <EyeIcon />
-                  </button>
-                  <button 
-                    className="btn-action btn-edit"
-                    onClick={() => handleEditClick(avaliador)}
-                    title="Editar avaliador"
-                  >
-                    <EditIcon />
-                  </button>
-                  <button 
-                    className="btn-action btn-delete"
-                    onClick={() => handleDeleteClick(avaliador)}
-                    title="Excluir avaliador"
-                  >
-                    <DeleteIcon />
                   </button>
                 </div>
               </div>

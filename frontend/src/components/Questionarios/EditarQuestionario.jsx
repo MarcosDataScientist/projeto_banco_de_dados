@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { CheckIcon, SearchIcon, XIcon } from '../common/Icons'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { CheckIcon, SearchIcon, XIcon, EditIcon, ArrowLeftIcon } from '../common/Icons'
 import api from '../../services/api'
 
 function EditarQuestionario() {
   const navigate = useNavigate()
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const isViewMode = searchParams.get('view') === 'true'
   const [formData, setFormData] = useState({
     nome: '',
     tipo: '',
@@ -23,6 +25,7 @@ function EditarQuestionario() {
   const [error, setError] = useState(null)
   const [loadingData, setLoadingData] = useState(true)
   const [loadingPerguntas, setLoadingPerguntas] = useState(false)
+  const [totalAplicacoes, setTotalAplicacoes] = useState(0)
   const isInitialMount = useRef(true)
 
   useEffect(() => {
@@ -61,6 +64,9 @@ function EditarQuestionario() {
           classificacao_cod: questionarioData.classificacao_id || '',
           status: questionarioData.status || 'Ativo'
         })
+        
+        // Armazenar total de aplicações
+        setTotalAplicacoes(questionarioData.total_aplicacoes || 0)
         
         // Preencher perguntas já selecionadas
         if (questionarioData.perguntas && Array.isArray(questionarioData.perguntas)) {
@@ -157,6 +163,8 @@ function EditarQuestionario() {
   }
 
   const togglePergunta = (perguntaId) => {
+    if (isViewMode || totalAplicacoes > 0) return
+    
     setPerguntasSelecionadas(prev => {
       if (prev.includes(perguntaId)) {
         return prev.filter(id => id !== perguntaId)
@@ -168,6 +176,17 @@ function EditarQuestionario() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    // Se estiver em modo visualização, não permitir submit
+    if (isViewMode) {
+      return
+    }
+    
+    // Verificar se o questionário possui aplicações
+    if (totalAplicacoes > 0) {
+      setError('Não é possível editar este questionário. Ele possui aplicações vinculadas.')
+      return
+    }
     
     // Validações
     if (!formData.nome.trim()) {
@@ -221,7 +240,7 @@ function EditarQuestionario() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h2>Editar Formulário</h2>
+        <h2>{isViewMode ? 'Visualizar Formulário' : 'Editar Formulário'}</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="form-container">
@@ -231,12 +250,19 @@ function EditarQuestionario() {
           </div>
         )}
 
-        <div className="form-card">
-          <div className="form-section">
-            <h4>Informações Básicas</h4>
-            
-            <div className="form-row">
-              <div className="form-group" style={{ flex: 2 }}>
+        <div className="questionario-edit-layout">
+          {/* Coluna Esquerda - Informações Básicas */}
+          <div className="form-card left-column">
+            <div className="form-section">
+              <h4>Informações Básicas</h4>
+              
+              {totalAplicacoes > 0 && !isViewMode && (
+                <div className="alert alert-error" style={{ marginBottom: '20px' }}>
+                  ⚠️ Este questionário possui {totalAplicacoes} aplicação(ões) vinculada(s) e não pode ser editado.
+                </div>
+              )}
+
+              <div className="form-group">
                 <label htmlFor="nome">Nome do Formulário *</label>
                 <input
                   type="text"
@@ -246,26 +272,26 @@ function EditarQuestionario() {
                   onChange={handleChange}
                   placeholder="Ex: Avaliação de Desligamento Geral"
                   required
+                  disabled={isViewMode || totalAplicacoes > 0}
                 />
               </div>
 
-              <div className="form-group" style={{ flex: 1 }}>
+              <div className="form-group">
                 <label htmlFor="status">Status</label>
                 <select
                   id="status"
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
+                  disabled={isViewMode || totalAplicacoes > 0}
                 >
                   <option value="Ativo">Ativo</option>
                   <option value="Rascunho">Rascunho</option>
                   <option value="Inativo">Inativo</option>
                 </select>
               </div>
-            </div>
 
-            <div className="form-row">
-              <div className="form-group" style={{ flex: 1 }}>
+              <div className="form-group">
                 <label htmlFor="tipo">Tipo</label>
                 <input
                   type="text"
@@ -274,10 +300,11 @@ function EditarQuestionario() {
                   value={formData.tipo}
                   onChange={handleChange}
                   placeholder="Ex: Padrão, Executivo, Simplificado"
+                  disabled={isViewMode || totalAplicacoes > 0}
                 />
               </div>
 
-              <div className="form-group" style={{ flex: 1 }}>
+              <div className="form-group">
                 <label htmlFor="classificacao_cod">Classificação *</label>
                 <select
                   id="classificacao_cod"
@@ -285,6 +312,7 @@ function EditarQuestionario() {
                   value={formData.classificacao_cod}
                   onChange={handleChange}
                   required
+                  disabled={isViewMode || totalAplicacoes > 0}
                 >
                   <option value="">Selecione uma classificação</option>
                   {classificacoes.map(classificacao => (
@@ -294,49 +322,62 @@ function EditarQuestionario() {
                   ))}
                 </select>
               </div>
+
+              {/* Botões de ação */}
+              {!isViewMode && (
+                <div className="form-actions-inline">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => navigate('/questionarios')}
+                    disabled={loading}
+                  >
+                    <XIcon /> Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={loading || totalAplicacoes > 0}
+                    title={totalAplicacoes > 0 ? 'Não é possível editar: questionário possui aplicações vinculadas' : ''}
+                  >
+                    {loading ? 'Salvando...' : (
+                      <>
+                        <CheckIcon /> Salvar Alterações
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+              {isViewMode && (
+                <div className="form-actions-inline">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => navigate('/questionarios')}
+                  >
+                    <ArrowLeftIcon /> Voltar
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => navigate(`/questionarios/editar/${id}`)}
+                    disabled={totalAplicacoes > 0}
+                    title={totalAplicacoes > 0 ? 'Não é possível editar: questionário possui aplicações vinculadas' : 'Editar Formulário'}
+                  >
+                    <EditIcon /> Editar Formulário
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="form-section">
-            <h4>Perguntas do Formulário</h4>
+          {/* Coluna Direita - Seleção de Perguntas */}
+          <div className="form-card right-column">
+            <div className="form-section">
+              <h4>Perguntas do Formulário</h4>
             <p style={{ color: '#666', fontSize: '14px', marginBottom: '15px' }}>
               Selecione as perguntas que farão parte deste formulário ({perguntasSelecionadas.length} selecionadas)
             </p>
-
-            {/* Caixas de contagem */}
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
-              gap: '15px', 
-              marginBottom: '15px' 
-            }}>
-              <div style={{
-                padding: '15px',
-                backgroundColor: '#f8f9fa',
-                borderRadius: '8px',
-                border: '1px solid #e0e0e0'
-              }}>
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
-                  Total de Perguntas
-                </div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>
-                  {perguntasTotal.length}
-                </div>
-              </div>
-              <div style={{
-                padding: '15px',
-                backgroundColor: '#e3f2fd',
-                borderRadius: '8px',
-                border: '1px solid #90caf9'
-              }}>
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
-                  Perguntas Filtradas
-                </div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1976d2' }}>
-                  {perguntas.length}
-                </div>
-              </div>
-            </div>
 
             {/* Filtros e busca */}
             <div style={{ marginBottom: '15px' }}>
@@ -347,6 +388,33 @@ function EditarQuestionario() {
                 flexWrap: 'wrap',
                 alignItems: 'center'
               }}>
+                <div style={{ flex: '2', minWidth: '250px' }}>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: '5px', 
+                    fontSize: '14px', 
+                    fontWeight: '500',
+                    color: '#333'
+                  }}>
+                    Buscar Perguntas
+                  </label>
+                  <div className="search-bar">
+                    <span className="search-icon"><SearchIcon /></span>
+                    <input
+                      type="text"
+                      placeholder="Buscar perguntas..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="search-input"
+                      disabled={loadingPerguntas || isViewMode || totalAplicacoes > 0}
+                    />
+                    {loadingPerguntas && (
+                      <span style={{ marginLeft: '10px', color: '#666', fontSize: '14px' }}>
+                        Buscando...
+                      </span>
+                    )}
+                  </div>
+                </div>
                 <div style={{ flex: '1', minWidth: '200px' }}>
                   <label style={{ 
                     display: 'block', 
@@ -369,39 +437,12 @@ function EditarQuestionario() {
                       backgroundColor: '#fff',
                       cursor: 'pointer'
                     }}
-                    disabled={loadingPerguntas}
+                    disabled={loadingPerguntas || isViewMode || totalAplicacoes > 0}
                   >
                     <option value="Todos">Todos os Tipos</option>
                     <option value="Múltipla Escolha">Múltipla Escolha</option>
                     <option value="Texto Livre">Texto Livre</option>
                   </select>
-                </div>
-                <div style={{ flex: '2', minWidth: '250px' }}>
-                  <label style={{ 
-                    display: 'block', 
-                    marginBottom: '5px', 
-                    fontSize: '14px', 
-                    fontWeight: '500',
-                    color: '#333'
-                  }}>
-                    Buscar Perguntas
-                  </label>
-                  <div className="search-bar">
-                    <span className="search-icon"><SearchIcon /></span>
-                    <input
-                      type="text"
-                      placeholder="Buscar perguntas..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="search-input"
-                      disabled={loadingPerguntas}
-                    />
-                    {loadingPerguntas && (
-                      <span style={{ marginLeft: '10px', color: '#666', fontSize: '14px' }}>
-                        Buscando...
-                      </span>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
@@ -421,8 +462,9 @@ function EditarQuestionario() {
                   return (
                     <div
                       key={perguntaId}
-                      className={`pergunta-item ${perguntasSelecionadas.includes(perguntaId) ? 'selected' : ''}`}
-                      onClick={() => togglePergunta(perguntaId)}
+                      className={`pergunta-item ${perguntasSelecionadas.includes(perguntaId) ? 'selected' : ''} ${isViewMode ? 'view-mode' : ''}`}
+                      onClick={() => !isViewMode && totalAplicacoes === 0 && togglePergunta(perguntaId)}
+                      style={{ cursor: (isViewMode || totalAplicacoes > 0) ? 'default' : 'pointer' }}
                     >
                       <div className="pergunta-checkbox">
                         <input
@@ -430,9 +472,10 @@ function EditarQuestionario() {
                           checked={perguntasSelecionadas.includes(perguntaId)}
                           onChange={(e) => {
                             e.stopPropagation()
-                            togglePergunta(perguntaId)
+                            if (!isViewMode && totalAplicacoes === 0) togglePergunta(perguntaId)
                           }}
                           onClick={(e) => e.stopPropagation()}
+                          disabled={isViewMode || totalAplicacoes > 0}
                         />
                       </div>
                       <div className="pergunta-content">
@@ -448,27 +491,6 @@ function EditarQuestionario() {
             </div>
           </div>
         </div>
-
-        <div className="form-actions">
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => navigate('/questionarios')}
-            disabled={loading}
-          >
-            <XIcon /> Cancelar
-          </button>
-          <button
-            type="submit"
-            className="btn-primary"
-            disabled={loading}
-          >
-            {loading ? 'Salvando...' : (
-              <>
-                <CheckIcon /> Salvar Alterações
-              </>
-            )}
-          </button>
         </div>
       </form>
     </div>

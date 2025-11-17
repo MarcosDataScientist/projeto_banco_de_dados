@@ -53,42 +53,44 @@ class PerguntasModel:
             connection = get_db_connection()
             cursor = connection.cursor(cursor_factory=RealDictCursor)
             
-            # Query base
-            base_query = """
-                FROM Questao q
-                WHERE 1=1
-            """
-            
+            # Construir condições WHERE
+            where_conditions = []
             params = []
             
             if filtro_tipo:
-                base_query += " AND q.tipo_questao = %s"
+                where_conditions.append("q.tipo_questao = %s")
                 params.append(filtro_tipo)
             
             if filtro_status:
-                base_query += " AND q.status = %s"
+                where_conditions.append("q.status = %s")
                 params.append(filtro_status)
             
             if filtro_busca:
-                base_query += " AND (LOWER(q.texto_questao) LIKE %s OR LOWER(q.tipo_questao) LIKE %s)"
+                where_conditions.append("(LOWER(q.texto_questao) LIKE %s OR LOWER(q.tipo_questao) LIKE %s)")
                 busca_pattern = f"%{filtro_busca.lower()}%"
                 params.append(busca_pattern)
                 params.append(busca_pattern)
             
-            # Contar total de registros
-            count_query = f"SELECT COUNT(*) as total {base_query}"
+            where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+            
+            # Contar total de registros (sem GROUP BY para contar corretamente)
+            count_query = f"SELECT COUNT(DISTINCT q.cod_questao) as total FROM Questao q {where_clause}"
             cursor.execute(count_query, tuple(params) if params else None)
             total = cursor.fetchone()['total']
             
-            # Query com paginação
+            # Query com paginação incluindo contagem de respostas
             offset = (page - 1) * per_page
             data_query = f"""
                 SELECT 
                     q.cod_questao,
                     q.tipo_questao,
                     q.texto_questao,
-                    q.status
-                {base_query}
+                    q.status,
+                    COALESCE(COUNT(DISTINCT r.cod_resposta), 0) as total_respostas
+                FROM Questao q
+                LEFT JOIN Resposta r ON q.cod_questao = r.questao_cod
+                {where_clause}
+                GROUP BY q.cod_questao, q.tipo_questao, q.texto_questao, q.status
                 ORDER BY q.cod_questao
                 LIMIT %s OFFSET %s
             """
@@ -132,9 +134,12 @@ class PerguntasModel:
                     q.cod_questao,
                     q.tipo_questao,
                     q.texto_questao,
-                    q.status
+                    q.status,
+                    COALESCE(COUNT(DISTINCT r.cod_resposta), 0) as total_respostas
                 FROM Questao q
+                LEFT JOIN Resposta r ON q.cod_questao = r.questao_cod
                 WHERE q.cod_questao = %s
+                GROUP BY q.cod_questao, q.tipo_questao, q.texto_questao, q.status
             """
             
             cursor.execute(query, (questao_id,))

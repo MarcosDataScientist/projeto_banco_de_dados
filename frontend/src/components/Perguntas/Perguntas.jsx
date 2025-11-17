@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { SearchIcon, PlusIcon, EditIcon, DeleteIcon, QuestionsIcon, EyeIcon } from '../common/Icons'
+import { SearchIcon, PlusIcon, EditIcon, DeleteIcon, QuestionsIcon, EyeIcon, QuestionIcon, XIcon } from '../common/Icons'
 import CadastrarPergunta from './CadastrarPergunta'
+import EditarPergunta from './EditarPergunta'
 import Toast from '../common/Toast'
+import ConfirmModal from '../common/ConfirmModal'
 import api from '../../services/api'
 
 function Perguntas() {
-  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [perguntas, setPerguntas] = useState([])
   const [categorias, setCategorias] = useState([])
@@ -16,8 +16,12 @@ function Perguntas() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [isCadastroModalOpen, setIsCadastroModalOpen] = useState(false)
+  const [isEditarModalOpen, setIsEditarModalOpen] = useState(false)
   const [isVisualizarModalOpen, setIsVisualizarModalOpen] = useState(false)
   const [perguntaToView, setPerguntaToView] = useState(null)
+  const [perguntaToEdit, setPerguntaToEdit] = useState(null)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [perguntaToDelete, setPerguntaToDelete] = useState(null)
   const [pagination, setPagination] = useState({
     page: 1,
     per_page: 10,
@@ -136,6 +140,28 @@ function Perguntas() {
     setPerguntaToView(null)
   }
 
+  const handleEditClick = async (pergunta) => {
+    try {
+      // Carregar dados completos da pergunta para verificar se tem respostas
+      const perguntaData = await api.getPergunta(pergunta.cod_questao)
+      setPerguntaToEdit(perguntaData)
+      setIsEditarModalOpen(true)
+    } catch (err) {
+      console.error('Erro ao carregar pergunta:', err)
+      showToast('error', 'Erro', 'Não foi possível carregar os dados da pergunta.')
+    }
+  }
+
+  const handleCloseEditModal = () => {
+    setIsEditarModalOpen(false)
+    setPerguntaToEdit(null)
+  }
+
+  const handleEditSuccess = () => {
+    carregarDados()
+    showToast('success', 'Pergunta atualizada!', 'A pergunta foi atualizada com sucesso.')
+  }
+
   // Perguntas já vêm filtradas do backend
   const filteredPerguntas = perguntas
 
@@ -162,12 +188,22 @@ function Perguntas() {
     setToast(prev => ({ ...prev, show: false }))
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm('Tem certeza que deseja excluir esta pergunta?')) return
+  const handleDeleteClick = (pergunta) => {
+    setPerguntaToDelete(pergunta)
+    setIsDeleteModalOpen(true)
+  }
+
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false)
+    setPerguntaToDelete(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!perguntaToDelete) return
 
     try {
-      await api.deletarPergunta(id)
-      setPerguntas(perguntas.filter(p => p.cod_questao !== id))
+      await api.deletarPergunta(perguntaToDelete.cod_questao)
+      setPerguntas(perguntas.filter(p => p.cod_questao !== perguntaToDelete.cod_questao))
       showToast(
         'success',
         'Pergunta excluída!',
@@ -175,6 +211,7 @@ function Perguntas() {
       )
       // Recarregar dados para atualizar a paginação
       carregarDados()
+      handleCloseDeleteModal()
     } catch (err) {
       console.error('Erro ao deletar pergunta:', err)
       
@@ -201,7 +238,17 @@ function Perguntas() {
           errorMessage
         )
       }
+      
+      handleCloseDeleteModal()
     }
+  }
+
+  // Obter texto da pergunta para exibir no modal
+  const getPerguntaText = () => {
+    if (!perguntaToDelete) return ''
+    const texto = perguntaToDelete.texto_questao || perguntaToDelete.texto || ''
+    // Limitar a 100 caracteres para não ficar muito longo
+    return texto.length > 100 ? texto.substring(0, 100) + '...' : texto
   }
 
   if (loading) {
@@ -343,14 +390,15 @@ function Perguntas() {
                     </button>
                     <button 
                       className="btn-action btn-edit"
-                      onClick={() => navigate(`/perguntas/editar/${pergunta.cod_questao}`)}
-                      title="Editar"
+                      onClick={() => handleEditClick(pergunta)}
+                      title={(pergunta.total_respostas || 0) > 0 ? 'Não é possível editar: pergunta possui respostas vinculadas' : 'Editar'}
+                      disabled={(pergunta.total_respostas || 0) > 0}
                     >
                       <EditIcon />
                     </button>
                     <button 
                       className="btn-action btn-delete"
-                      onClick={() => handleDelete(pergunta.cod_questao)}
+                      onClick={() => handleDeleteClick(pergunta)}
                       title="Excluir"
                     >
                       <DeleteIcon />
@@ -441,6 +489,13 @@ function Perguntas() {
             onSuccess={handleCadastroSuccess}
           />
 
+          <EditarPergunta
+            isOpen={isEditarModalOpen}
+            onClose={handleCloseEditModal}
+            onSuccess={handleEditSuccess}
+            perguntaId={perguntaToEdit?.cod_questao}
+          />
+
           <Toast
             show={toast.show}
             type={toast.type}
@@ -450,38 +505,82 @@ function Perguntas() {
             duration={6000}
           />
 
+          {/* Modal de Confirmação de Exclusão */}
+          <ConfirmModal
+            isOpen={isDeleteModalOpen}
+            onClose={handleCloseDeleteModal}
+            onConfirm={handleConfirmDelete}
+            title="Excluir Pergunta"
+            message={
+              perguntaToDelete ? (
+                <>
+                  Tem certeza que deseja excluir esta pergunta?
+                  <br /><br />
+                  <strong>Pergunta:</strong> {getPerguntaText()}
+                  <br />
+                  <strong>Tipo:</strong> {perguntaToDelete.tipo_questao || perguntaToDelete.tipo || 'N/A'}
+                  <br />
+                  <strong>Status:</strong> {perguntaToDelete.status || 'N/A'}
+                  {(perguntaToDelete.total_respostas || 0) > 0 && (
+                    <>
+                      <br />
+                      <br />
+                      <span style={{ color: '#dc2626', fontWeight: 'bold' }}>
+                        ⚠️ Atenção: Esta pergunta possui {perguntaToDelete.total_respostas} resposta(s) vinculada(s).
+                        Ao excluir, todas as respostas relacionadas também serão removidas.
+                      </span>
+                    </>
+                  )}
+                  <br /><br />
+                  <span style={{ color: '#dc2626' }}>
+                    Esta ação não pode ser desfeita.
+                  </span>
+                </>
+              ) : (
+                'Tem certeza que deseja excluir esta pergunta?'
+              )
+            }
+            confirmText="Sim, Excluir"
+            cancelText="Cancelar"
+          />
+
           {/* Modal de Visualização */}
           {isVisualizarModalOpen && perguntaToView && (
             <div className="modal-overlay">
-              <div className="modal-content pergunta-modal">
+              <div className="modal-container">
                 <div className="modal-header">
-                  <h2>Detalhes da Pergunta</h2>
+                  <h2 className="modal-title">
+                    <QuestionIcon /> Detalhes da Pergunta
+                  </h2>
                   <button 
-                    className="btn-close" 
+                    className="modal-close" 
                     onClick={handleCloseViewModal}
                     title="Fechar"
                   >
-                    ×
+                    <XIcon />
                   </button>
                 </div>
                 
                 <div className="modal-body">
                   <div className="pergunta-details">
-                    <div className="detail-section">
-                      <h3>Informações Básicas</h3>
+                    {/* Informações Básicas */}
+                    <div className="detail-section info-basicas">
+                      <h3>
+                        <QuestionIcon /> Informações Básicas
+                      </h3>
                       <div className="detail-grid">
                         <div className="detail-item">
-                          <label>ID:</label>
-                          <span>{perguntaToView.cod_questao}</span>
+                          <label>ID da Pergunta</label>
+                          <span className="detail-value">#{perguntaToView.cod_questao}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Status:</label>
+                          <label>Status</label>
                           <span className={`badge ${perguntaToView.status === 'Ativo' ? 'badge-ativo' : 'badge-inativo'}`}>
                             {perguntaToView.status}
                           </span>
                         </div>
                         <div className="detail-item">
-                          <label>Tipo:</label>
+                          <label>Tipo de Pergunta</label>
                           <span className={`badge ${getTipoBadgeColor(perguntaToView.tipo_questao)}`}>
                             {perguntaToView.tipo_questao}
                           </span>
@@ -489,21 +588,27 @@ function Perguntas() {
                       </div>
                     </div>
 
-                    <div className="detail-section">
-                      <h3>Texto da Pergunta</h3>
-                      <div className="pergunta-texto">
-                        <p>{perguntaToView.texto_questao}</p>
+                    {/* Texto da Pergunta */}
+                    <div className="detail-section texto-pergunta">
+                      <h3>
+                        <QuestionIcon /> Texto da Pergunta
+                      </h3>
+                      <div className="pergunta-texto-box">
+                        <p className="pergunta-texto-content">{perguntaToView.texto_questao}</p>
                       </div>
                     </div>
 
+                    {/* Opções de Resposta */}
                     {perguntaToView.tipo_questao === 'Múltipla Escolha' && perguntaToView.opcoes && perguntaToView.opcoes.length > 0 && (
-                      <div className="detail-section">
-                        <h3>Opções de Resposta</h3>
-                        <div className="opcoes-list">
+                      <div className="detail-section opcoes-resposta">
+                        <h3>
+                          <QuestionIcon /> Opções de Resposta
+                        </h3>
+                        <div className="opcoes-list-view">
                           {perguntaToView.opcoes.map((opcao, index) => (
-                            <div key={index} className="opcao-item">
-                              <span className="opcao-number">{index + 1}.</span>
-                              <span className="opcao-text">{opcao}</span>
+                            <div key={index} className="opcao-item-view">
+                              <div className="opcao-number-view">{index + 1}</div>
+                              <div className="opcao-text-view">{opcao}</div>
                             </div>
                           ))}
                         </div>

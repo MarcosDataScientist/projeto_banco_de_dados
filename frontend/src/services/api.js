@@ -332,6 +332,16 @@ class ApiService {
       method: 'DELETE',
     })
   }
+
+  // ==========================================
+  // ADMINISTRAÇÃO
+  // ==========================================
+
+  async limparBancoDados() {
+    return this.request('/admin/limpar-banco', {
+      method: 'DELETE',
+    })
+  }
 }
 
 export default new ApiService()

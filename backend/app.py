@@ -902,6 +902,70 @@ def shutdown_session(exception=None):
     """Fecha conexões ao encerrar"""
     pass
 
+# ==========================================
+# ROTAS API - ADMINISTRAÇÃO
+# ==========================================
+
+@app.route('/api/admin/limpar-banco', methods=['DELETE'])
+def limpar_banco_dados():
+    """Exclui todos os dados do banco de dados"""
+    from backend.config.database import Database
+    
+    conn = None
+    try:
+        conn = Database.get_connection()
+        if not conn:
+            return jsonify({'error': 'Não foi possível conectar ao banco de dados'}), 500
+        
+        cursor = conn.cursor()
+        
+        # Ordem de exclusão respeitando foreign keys
+        # Primeiro excluir tabelas dependentes
+        tabelas = [
+            'Resposta_Escolha',
+            'Resposta_Texto',
+            'Resposta',
+            'Avaliacao',
+            'Questionario_Questao',
+            'Questionario',
+            'Questao_Multipla_Escolha',
+            'Questao_Texto_Livre',
+            'Questao',
+            'Funcionario_Treinamento',
+            'Funcionario_Classificacao',
+            'Funcionario',
+            'Treinamento',
+            'Classificacao'
+        ]
+        
+        # Desabilitar temporariamente as verificações de foreign key
+        cursor.execute("SET session_replication_role = 'replica';")
+        
+        for tabela in tabelas:
+            try:
+                cursor.execute(f"TRUNCATE TABLE {tabela} CASCADE;")
+            except Exception as e:
+                # Se a tabela não existir ou houver erro, continua
+                print(f"Aviso ao limpar {tabela}: {str(e)}")
+        
+        # Reabilitar verificações de foreign key
+        cursor.execute("SET session_replication_role = 'origin';")
+        
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Todos os dados foram excluídos com sucesso'
+        }), 200
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'error': f'Erro ao limpar banco de dados: {str(e)}'}), 500
+    finally:
+        if conn:
+            Database.return_connection(conn)
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5001))
     debug = os.getenv('FLASK_ENV') == 'development'

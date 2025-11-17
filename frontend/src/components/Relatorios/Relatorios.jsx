@@ -1,40 +1,10 @@
 import React, { useState } from 'react'
-import { ReportsIcon, SearchIcon, CalendarIcon, FileIcon, PlusIcon, EditIcon, EyeIcon, DeleteIcon, DownloadIcon } from '../common/Icons'
+import { ReportsIcon, SearchIcon, CalendarIcon, FileIcon, PlusIcon, EditIcon, EyeIcon, DeleteIcon, DownloadIcon, XIcon } from '../common/Icons'
 
 function Relatorios() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [relatorios, setRelatorios] = useState([
-    {
-      id: 1,
-      titulo: "Relatório Mensal - Janeiro 2024",
-      descricao: "Análise completa das avaliações de desligamento do mês",
-      tipo: "Mensal",
-      periodo: "2024-01",
-      status: "Concluído",
-      dataGeracao: "2024-02-01",
-      downloadUrl: "/relatorios/janeiro-2024.pdf"
-    },
-    {
-      id: 2,
-      titulo: "Relatório por Departamento",
-      descricao: "Avaliações segmentadas por departamento da empresa",
-      tipo: "Departamental",
-      periodo: "2024-Q1",
-      status: "Concluído",
-      dataGeracao: "2024-01-15",
-      downloadUrl: "/relatorios/departamental-q1.pdf"
-    },
-    {
-      id: 3,
-      titulo: "Relatório Executivo",
-      descricao: "Resumo executivo para a diretoria",
-      tipo: "Executivo",
-      periodo: "2023",
-      status: "Em Geração",
-      dataGeracao: null,
-      downloadUrl: null
-    }
-  ])
+  const [relatorios, setRelatorios] = useState([])
+  const [showModalEmBreve, setShowModalEmBreve] = useState(false)
 
   const filteredRelatorios = relatorios.filter(relatorio =>
     relatorio.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -96,7 +66,7 @@ function Relatorios() {
                 className="search-input"
               />
             </div>
-            <button className="btn-primary">
+            <button className="btn-primary" onClick={() => setShowModalEmBreve(true)}>
               <PlusIcon /> Gerar Relatório
             </button>
           </div>
@@ -154,6 +124,47 @@ function Relatorios() {
           )}
         </div>
       </div>
+
+      {/* Modal "Em Breve" */}
+      {showModalEmBreve && (
+        <div className="modal-overlay" onClick={() => setShowModalEmBreve(false)}>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">
+                <ReportsIcon /> Gerar Relatório
+              </h2>
+              <button 
+                className="modal-close"
+                onClick={() => setShowModalEmBreve(false)}
+              >
+                <XIcon />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <div style={{ fontSize: '64px', color: '#e91e63', marginBottom: '20px' }}>
+                  <ReportsIcon />
+                </div>
+                <h3 style={{ marginTop: '20px', marginBottom: '10px', color: '#1f2937', fontSize: '24px' }}>
+                  Em Breve
+                </h3>
+                <p style={{ color: '#6b7280', fontSize: '16px' }}>
+                  A funcionalidade de geração de relatórios estará disponível em breve.
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                type="button" 
+                className="btn-primary"
+                onClick={() => setShowModalEmBreve(false)}
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

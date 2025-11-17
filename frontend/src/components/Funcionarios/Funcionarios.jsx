@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SearchIcon, PlusIcon, EditIcon, DeleteIcon, CalendarIcon, UsersIcon, EyeIcon, XIcon } from '../common/Icons'
+import { SearchIcon, PlusIcon, DeleteIcon, CalendarIcon, UsersIcon, EyeIcon } from '../common/Icons'
 import ConfirmModal from '../common/ConfirmModal'
 import Toast from '../common/Toast'
 import CadastrarFuncionario from './CadastrarFuncionario'
@@ -14,9 +14,7 @@ function Funcionarios() {
   const hasLoadedRef = useRef(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCadastroModalOpen, setIsCadastroModalOpen] = useState(false)
-  const [isVisualizarModalOpen, setIsVisualizarModalOpen] = useState(false)
   const [funcionarioToDelete, setFuncionarioToDelete] = useState(null)
-  const [funcionarioToView, setFuncionarioToView] = useState(null)
   const [funcionarios, setFuncionarios] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -223,11 +221,6 @@ function Funcionarios() {
     setIsModalOpen(true)
   }
 
-  const handleViewClick = (funcionario) => {
-    setFuncionarioToView(funcionario)
-    setIsVisualizarModalOpen(true)
-  }
-
   const showToast = (type, title, message = '') => {
     setToast({ show: true, type, title, message })
   }
@@ -274,11 +267,6 @@ function Funcionarios() {
     setFuncionarioToDelete(null)
   }
 
-  const handleCloseViewModal = () => {
-    setIsVisualizarModalOpen(false)
-    setFuncionarioToView(null)
-  }
-
   const handleCadastroSuccess = () => {
     // Recarregar a lista de funcionários após cadastro
     carregarFuncionarios()
@@ -320,237 +308,69 @@ function Funcionarios() {
         <h2>Listagem funcionários</h2>
       </div>
 
-      {/* Estatísticas Globais Destacadas */}
-      <div style={{
-        background: 'linear-gradient(135deg, #fff5f7 0%, #f3e5f5 50%, #e8f4f8 100%)',
-        borderRadius: '16px',
-        padding: '28px',
-        marginBottom: '24px',
-        color: '#5a5a5a',
-        border: '2px solid rgba(236, 183, 191, 0.3)',
-        boxShadow: '0 6px 16px rgba(236, 183, 191, 0.15)'
-      }}>
-        {/* Título */}
-        <div style={{ 
-          marginBottom: '24px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px'
-        }}>
-          <span style={{ fontSize: '20px' }}>📊</span>
-          <strong style={{ 
-            fontSize: '16px', 
-            color: '#c48b9f',
-            letterSpacing: '0.5px'
-          }}>
-            ESTATÍSTICAS GERAIS DO SISTEMA
-          </strong>
-        </div>
-
-        {/* Grid de Estatísticas */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '20px'
-        }}>
-          {/* Total Geral */}
-          <div style={{
-            background: 'rgba(236, 183, 191, 0.2)',
-            borderRadius: '12px',
-            padding: '20px',
-            border: '2px solid rgba(236, 183, 191, 0.4)',
-            textAlign: 'center',
-            transition: 'transform 0.2s ease',
-            cursor: 'default'
-          }}>
-            <div style={{ 
-              fontSize: '13px', 
-              color: '#b88a96',
-              fontWeight: '600',
-              marginBottom: '12px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              📋 Total Geral
+      <div className="dashboard-layout">
+        {/* Sidebar de Estatísticas - mesmo estilo das outras telas */}
+        <div className="stats-sidebar">
+          {/* Estatísticas Globais Destacadas */}
+          <div className="stats-box" style={{ marginBottom: '20px' }}>
+            <h3>Estatísticas Gerais do Sistema</h3>
+            <div className="stats-list">
+              <div className="stat-row">
+                <span className="stat-label">Total Geral</span>
+                <span className="stat-number">{totalGlobal}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">Total Ativo</span>
+                <span className="stat-number">{totalAtivo}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">Total Inativo</span>
+                <span className="stat-number">{totalInativo}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">Em Processo</span>
+                <span className="stat-number">{totalProcesso}</span>
+              </div>
             </div>
-            <div style={{ 
-              fontSize: '42px', 
-              fontWeight: 'bold',
-              color: '#c48b9f',
-              lineHeight: '1',
-              marginBottom: '8px'
+            <div style={{
+              marginTop: '16px',
+              padding: '10px 12px',
+              background: '#f8fafc',
+              borderRadius: '6px',
+              textAlign: 'center',
+              fontSize: '11px',
+              color: '#6b7280',
+              fontStyle: 'italic',
+              border: '1px solid #e2e8f0'
             }}>
-              {totalGlobal}
-            </div>
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#999',
-              fontStyle: 'italic'
-            }}>
-              Cadastrados
+              ℹ️ Todas as contagens são referentes ao total de funcionários cadastrados no sistema (independente de filtros ou paginação)
             </div>
           </div>
 
-          {/* Total Ativo */}
-          <div style={{
-            background: 'rgba(200, 230, 201, 0.3)',
-            borderRadius: '12px',
-            padding: '20px',
-            border: '2px solid rgba(165, 214, 167, 0.5)',
-            textAlign: 'center',
-            transition: 'transform 0.2s ease',
-            cursor: 'default'
-          }}>
-            <div style={{ 
-              fontSize: '13px', 
-              color: '#81c784',
-              fontWeight: '600',
-              marginBottom: '12px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              ✅ Total Ativo
-            </div>
-            <div style={{ 
-              fontSize: '42px', 
-              fontWeight: 'bold',
-              color: '#66bb6a',
-              lineHeight: '1',
-              marginBottom: '8px'
-            }}>
-              {totalAtivo}
-            </div>
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#999',
-              fontStyle: 'italic'
-            }}>
-              Em atividade
-            </div>
-          </div>
-
-          {/* Total Inativo */}
-          <div style={{
-            background: 'rgba(255, 224, 178, 0.3)',
-            borderRadius: '12px',
-            padding: '20px',
-            border: '2px solid rgba(255, 204, 128, 0.5)',
-            textAlign: 'center',
-            transition: 'transform 0.2s ease',
-            cursor: 'default'
-          }}>
-            <div style={{ 
-              fontSize: '13px', 
-              color: '#ffb74d',
-              fontWeight: '600',
-              marginBottom: '12px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              ⏸️ Total Inativo
-            </div>
-            <div style={{ 
-              fontSize: '42px', 
-              fontWeight: 'bold',
-              color: '#ffa726',
-              lineHeight: '1',
-              marginBottom: '8px'
-            }}>
-              {totalInativo}
-            </div>
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#999',
-              fontStyle: 'italic'
-            }}>
-              Não ativos
-            </div>
-          </div>
-
-          {/* Total em Processo */}
-          <div style={{
-            background: 'rgba(255, 183, 177, 0.3)',
-            borderRadius: '12px',
-            padding: '20px',
-            border: '2px solid rgba(255, 152, 138, 0.5)',
-            textAlign: 'center',
-            transition: 'transform 0.2s ease',
-            cursor: 'default'
-          }}>
-            <div style={{ 
-              fontSize: '13px', 
-              color: '#ff8a65',
-              fontWeight: '600',
-              marginBottom: '12px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              ⚠️ Em Processo
-            </div>
-            <div style={{ 
-              fontSize: '42px', 
-              fontWeight: 'bold',
-              color: '#ff7043',
-              lineHeight: '1',
-              marginBottom: '8px'
-            }}>
-              {totalProcesso}
-            </div>
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#999',
-              fontStyle: 'italic'
-            }}>
-              Processo de saída
+          <div className="stats-box">
+            <h3>Estatísticas da View</h3>
+            <div className="stats-list">
+              <div className="stat-row">
+                <span className="stat-label">Total</span>
+                <span className="stat-number">{totalFuncionarios}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">Em Processo</span>
+                <span className="stat-number">{emProcesso}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">Ativos</span>
+                <span className="stat-number">{ativos}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">Departamentos</span>
+                <span className="stat-number">{departamentos}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Nota explicativa */}
-        <div style={{
-          marginTop: '20px',
-          padding: '12px 16px',
-          background: 'rgba(255, 255, 255, 0.6)',
-          borderRadius: '8px',
-          textAlign: 'center',
-          fontSize: '12px',
-          color: '#888',
-          fontStyle: 'italic'
-        }}>
-          ℹ️ Todas as contagens são referentes ao total de funcionários cadastrados no sistema (independente de filtros ou paginação)
-        </div>
-      </div>
-
-      <p style={{
-        textAlign: 'center', 
-        fontSize: '13px', 
-        color: '#666', 
-        marginBottom: '16px',
-        fontStyle: 'italic'
-      }}>
-        ⚠️ As contagens abaixo são referentes aos funcionários que estão sendo exibidos nesta view/página
-      </p>
-
-      <div className="stats-row">  
-        <div className="stat-item">
-          <span className="stat-number">{totalFuncionarios}</span>
-          <span className="stat-label">Total</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-number">{emProcesso}</span>
-          <span className="stat-label">Em Processo</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-number">{ativos}</span>
-          <span className="stat-label">Ativos</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-number">{departamentos}</span>
-          <span className="stat-label">Departamentos</span>
-        </div>
-      </div>
-
-      <div className="list-container">
+        <div className="list-container">
         <div className="search-section">
           <div className="search-bar">
             <span className="search-icon"><SearchIcon /></span>
@@ -627,15 +447,8 @@ function Funcionarios() {
                   </div>
                   <div className="item-actions">
                     <button 
-                      className="btn-action btn-edit" 
-                      onClick={() => navigate(`/funcionarios/editar/${funcionario.cpf}`)}
-                      title="Editar"
-                    >
-                      <EditIcon />
-                    </button>
-                    <button 
-                      className="btn-action btn-preview"
-                      onClick={() => handleViewClick(funcionario)}
+                      className="btn-action btn-preview" 
+                      onClick={() => navigate(`/funcionarios/visualizar/${funcionario.cpf}`)}
                       title="Visualizar"
                     >
                       <EyeIcon />
@@ -727,6 +540,7 @@ function Funcionarios() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       <ConfirmModal
@@ -744,78 +558,6 @@ function Funcionarios() {
         onClose={() => setIsCadastroModalOpen(false)}
         onSuccess={handleCadastroSuccess}
       />
-
-      {/* Modal de Visualização */}
-      {isVisualizarModalOpen && funcionarioToView && (
-        <div className="modal-overlay">
-          <div className="modal-container">
-            <div className="modal-header">
-              <h2 className="modal-title">Dados do Funcionário</h2>
-              <button 
-                className="modal-close"
-                onClick={handleCloseViewModal}
-              >
-                <XIcon />
-              </button>
-            </div>
-            
-            <div className="modal-body">
-              <div className="funcionario-details">
-                <div className="detail-section">
-                  <h3>Informações Pessoais</h3>
-                  <div className="detail-grid">
-                    <div className="detail-item">
-                      <label>Nome Completo:</label>
-                      <span>{funcionarioToView.nome}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>CPF:</label>
-                      <span>{funcionarioToView.cpf}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Email:</label>
-                      <span>{funcionarioToView.email || 'Não informado'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>CTPS:</label>
-                      <span>{funcionarioToView.ctps || 'Não informado'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="detail-section">
-                  <h3>Informações Profissionais</h3>
-                  <div className="detail-grid">
-                    <div className="detail-item">
-                      <label>Setor:</label>
-                      <span>{funcionarioToView.setor || 'Não informado'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Tipo de Contrato:</label>
-                      <span>{funcionarioToView.tipo || 'Não informado'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Status:</label>
-                      <span className={`status-badge ${getStatusBadgeColor(funcionarioToView.status)}`}>
-                        {funcionarioToView.status}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button 
-                className="btn-secondary"
-                onClick={handleCloseViewModal}
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Toast para mensagens de sucesso/erro */}
       <Toast

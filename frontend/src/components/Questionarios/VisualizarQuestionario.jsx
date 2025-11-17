@@ -109,26 +109,10 @@ function VisualizarFormulario({ isOpen, onClose, questionario }) {
                     {detalhes.perguntas && detalhes.perguntas.length > 0 ? (
                       <div className="perguntas-visualizacao">
                         {detalhes.perguntas.map((pergunta, index) => (
-                          <div key={pergunta.id} className="pergunta-visualizacao-item">
+                          <div key={pergunta.id || index} className="pergunta-visualizacao-item">
                             <div className="pergunta-numero">{index + 1}</div>
                             <div className="pergunta-info">
-                              <p className="pergunta-texto">{pergunta.texto}</p>
-                              <div className="pergunta-meta">
-                                <span className="badge badge-default">{pergunta.tipo}</span>
-                                <span className={`badge ${getStatusBadgeColor(pergunta.status)}`}>
-                                  {pergunta.status}
-                                </span>
-                              </div>
-                              {pergunta.opcoes && pergunta.opcoes.length > 0 && (
-                                <div className="pergunta-opcoes">
-                                  <strong>Opções:</strong>
-                                  <ul>
-                                    {pergunta.opcoes.map((opcao, idx) => (
-                                      <li key={idx}>{opcao}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
+                              <p className="pergunta-texto">{pergunta.texto || pergunta.texto_questao || pergunta.titulo || 'Sem título'}</p>
                             </div>
                           </div>
                         ))}

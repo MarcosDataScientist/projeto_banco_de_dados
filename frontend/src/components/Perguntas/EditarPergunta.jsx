@@ -1,303 +1,363 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { SaveIcon, XIcon, QuestionsIcon, PlusIcon, DeleteIcon } from '../common/Icons'
+import { XIcon, QuestionIcon, TagIcon, ToggleIcon, CheckIcon } from '../common/Icons'
 import api from '../../services/api'
 
-function EditarPergunta() {
-  const { id } = useParams() // id é o cod_questao
-  const navigate = useNavigate()
-  
-  const [pergunta, setPergunta] = useState({
-    cod_questao: '',
-    texto_questao: '',
-    tipo_questao: '',
-    status: 'Ativo'
+function EditarPergunta({ isOpen, onClose, onSuccess, perguntaId }) {
+  const [formData, setFormData] = useState({
+    texto: '',
+    tipo: 'Múltipla Escolha',
+    status: 'Ativo',
+    opcoes: ['', '']
   })
-  const [opcoes, setOpcoes] = useState([]) // Para múltipla escolha
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
+  const [errors, setErrors] = useState({})
+  const [temRespostas, setTemRespostas] = useState(false)
 
   useEffect(() => {
-    carregarDados()
-  }, [id])
+    if (isOpen && perguntaId) {
+      carregarDados()
+    }
+  }, [isOpen, perguntaId])
 
   const carregarDados = async () => {
     try {
-      setLoading(true)
-      setError(null)
+      setLoadingData(true)
+      const perguntaData = await api.getPergunta(perguntaId)
+      
+      // Verificar se tem respostas vinculadas
+      // A API pode retornar total_respostas ou podemos verificar de outra forma
+      const totalRespostas = perguntaData.total_respostas || perguntaData.total_respostas_vinculadas || 0
+      setTemRespostas(totalRespostas > 0)
 
-      const perguntaData = await api.getPergunta(id)
-
-      setPergunta({
-        cod_questao: perguntaData.cod_questao || '',
-        texto_questao: perguntaData.texto_questao || '',
-        tipo_questao: perguntaData.tipo_questao || '',
-        status: perguntaData.status || 'Ativo'
+      setFormData({
+        texto: perguntaData.texto_questao || perguntaData.texto || '',
+        tipo: perguntaData.tipo_questao || perguntaData.tipo || 'Múltipla Escolha',
+        status: perguntaData.status || 'Ativo',
+        opcoes: perguntaData.opcoes 
+          ? (Array.isArray(perguntaData.opcoes) 
+              ? perguntaData.opcoes 
+              : JSON.parse(perguntaData.opcoes))
+          : ['', '']
       })
-
-      // Se for múltipla escolha e tiver opções
-      if (perguntaData.tipo_questao === 'Múltipla Escolha' && perguntaData.opcoes) {
-        // opcoes pode ser um array JSON
-        const opcoesArray = Array.isArray(perguntaData.opcoes) 
-          ? perguntaData.opcoes 
-          : JSON.parse(perguntaData.opcoes)
-        setOpcoes(opcoesArray)
-      }
     } catch (err) {
       console.error('Erro ao carregar pergunta:', err)
-      setError('Não foi possível carregar os dados da pergunta.')
+      alert('Erro ao carregar dados da pergunta.')
     } finally {
-      setLoading(false)
+      setLoadingData(false)
     }
   }
 
-  const handleChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target
-    setPergunta(prev => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value
     }))
+    
+    // Limpar erro do campo
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }))
+    }
 
     // Se mudar o tipo, ajustar opções
-    if (name === 'tipo_questao') {
+    if (name === 'tipo') {
       if (value !== 'Múltipla Escolha') {
-        setOpcoes([])
-      } else {
-        // Se mudou para múltipla escolha e não tem opções, adicionar duas opções vazias
-        if (opcoes.length === 0) {
-          setOpcoes(['', ''])
-        }
+        setFormData(prev => ({ ...prev, opcoes: [] }))
+      } else if (formData.opcoes.length === 0) {
+        setFormData(prev => ({ ...prev, opcoes: ['', ''] }))
       }
     }
   }
 
-  const handleAddOpcao = () => {
-    setOpcoes([...opcoes, ''])
-  }
-
   const handleOpcaoChange = (index, value) => {
-    const novasOpcoes = [...opcoes]
+    const novasOpcoes = [...formData.opcoes]
     novasOpcoes[index] = value
-    setOpcoes(novasOpcoes)
+    setFormData(prev => ({
+      ...prev,
+      opcoes: novasOpcoes
+    }))
+    
+    // Limpar erro de opções quando o usuário começar a preencher
+    if (errors.opcoes && value.trim() !== '') {
+      setErrors(prev => ({
+        ...prev,
+        opcoes: ''
+      }))
+    }
   }
 
-  const handleRemoveOpcao = (index) => {
-    setOpcoes(opcoes.filter((_, i) => i !== index))
+  const adicionarOpcao = () => {
+    if (formData.opcoes.length < 6) {
+      setFormData(prev => ({
+        ...prev,
+        opcoes: [...prev.opcoes, '']
+      }))
+    }
+  }
+
+  const removerOpcao = (index) => {
+    if (formData.opcoes.length > 2) {
+      const novasOpcoes = formData.opcoes.filter((_, i) => i !== index)
+      setFormData(prev => ({
+        ...prev,
+        opcoes: novasOpcoes
+      }))
+    }
+  }
+
+  const validateForm = () => {
+    const newErrors = {}
+
+    if (!formData.texto.trim()) {
+      newErrors.texto = 'Texto da pergunta é obrigatório'
+    } else if (formData.texto.trim().length < 10) {
+      newErrors.texto = 'Texto deve ter pelo menos 10 caracteres'
+    }
+
+    if (!formData.tipo) {
+      newErrors.tipo = 'Tipo da pergunta é obrigatório'
+    }
+
+    if (formData.tipo === 'Múltipla Escolha') {
+      const opcoesVazias = formData.opcoes.filter(opcao => opcao.trim() === '')
+      
+      if (opcoesVazias.length > 0) {
+        newErrors.opcoes = 'Todas as opções disponíveis devem ser preenchidas. Não é permitido deixar opções em branco.'
+      } else {
+        if (formData.opcoes.length < 2) {
+          newErrors.opcoes = 'Múltipla escolha deve ter pelo menos 2 opções'
+        }
+        
+        const opcoesValidas = formData.opcoes.map(opcao => opcao.trim())
+        const opcoesUnicas = [...new Set(opcoesValidas)]
+        if (opcoesUnicas.length !== opcoesValidas.length) {
+          newErrors.opcoes = 'Não é possível ter opções duplicadas'
+        }
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    // Validações
-    if (pergunta.tipo_questao === 'Múltipla Escolha' && opcoes.filter(o => o.trim()).length < 2) {
-      alert('Questões de múltipla escolha precisam ter pelo menos 2 opções.')
+    if (temRespostas) {
+      alert('Não é possível editar perguntas que já possuem respostas vinculadas.')
+      return
+    }
+    
+    if (!validateForm()) {
       return
     }
 
     try {
       setLoading(true)
       
-      // Dados para atualizar
-      const dados = {
-        texto_questao: pergunta.texto_questao,
-        tipo_questao: pergunta.tipo_questao,
-        status: pergunta.status
+      const dadosParaEnvio = {
+        texto: formData.texto.trim(),
+        tipo: formData.tipo,
+        status: formData.status
       }
 
-      // Se for múltipla escolha, incluir opções (será tratado pelo backend)
-      if (pergunta.tipo_questao === 'Múltipla Escolha') {
-        dados.opcoes = opcoes.filter(o => o.trim())
+      if (formData.tipo === 'Múltipla Escolha') {
+        dadosParaEnvio.opcoes = formData.opcoes
+          .map(opcao => opcao.trim())
+          .filter(opcao => opcao !== '')
       }
 
-      await api.atualizarPergunta(id, dados)
-      alert('Pergunta atualizada com sucesso!')
-      navigate('/perguntas')
+      await api.atualizarPergunta(perguntaId, dadosParaEnvio)
+      
+      onSuccess()
+      onClose()
+      
     } catch (err) {
       console.error('Erro ao atualizar pergunta:', err)
-      alert('Erro ao atualizar pergunta. Tente novamente.')
+      const errorMessage = err.response?.data?.error || err.message || 'Erro ao atualizar pergunta. Tente novamente.'
+      alert(errorMessage)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleCancel = () => {
-    navigate('/perguntas')
+  const handleClose = () => {
+    setFormData({
+      texto: '',
+      tipo: 'Múltipla Escolha',
+      status: 'Ativo',
+      opcoes: ['', '']
+    })
+    setErrors({})
+    setTemRespostas(false)
+    onClose()
   }
 
-  if (loading) {
-    return (
-      <div className="page-container">
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>Carregando dados da pergunta...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="page-container">
-        <div className="error-container">
-          <h3>Erro ao carregar dados</h3>
-          <p>{error}</p>
-          <button onClick={carregarDados} className="btn-primary">Tentar novamente</button>
-        </div>
-      </div>
-    )
-  }
+  if (!isOpen) return null
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h2>Editar Pergunta</h2>
-        <p>Atualize as informações da pergunta</p>
-      </div>
-
-      <div className="form-container">
-        <div className="form-card">
-          {/* Header Section */}
-          <div className="form-avatar-section">
-            <div className="form-avatar-placeholder" style={{ background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' }}>
-              <QuestionsIcon />
-            </div>
-            <div className="form-avatar-info">
-              <h3>Questão #{pergunta.cod_questao}</h3>
-              <p className="form-avatar-subtitle">
-                {pergunta.tipo_questao || 'Tipo de questão'}
-              </p>
-            </div>
+    <div className="modal-overlay">
+      <div className="modal-container">
+        <div className="modal-header">
+          <h2 className="modal-title">
+            <QuestionIcon /> Editar Pergunta
+          </h2>
+          <button 
+            className="modal-close"
+            onClick={handleClose}
+          >
+            <XIcon />
+          </button>
+        </div>
+        
+        {loadingData ? (
+          <div className="modal-body" style={{ textAlign: 'center', padding: '40px' }}>
+            <div className="spinner"></div>
+            <p>Carregando dados da pergunta...</p>
           </div>
+        ) : (
+          <>
+            {temRespostas && (
+              <div style={{
+                margin: '0 24px 20px 24px',
+                padding: '12px 16px',
+                background: '#fff3cd',
+                border: '1px solid #ffc107',
+                borderRadius: '8px',
+                color: '#856404',
+                fontSize: '14px'
+              }}>
+                ⚠️ Esta pergunta possui respostas vinculadas e não pode ser editada.
+              </div>
+            )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="employee-form">
-            <div className="form-group">
-              <label htmlFor="texto_questao" className="form-label">
-                Texto da Pergunta <span className="required">*</span>
-              </label>
-              <textarea
-                id="texto_questao"
-                name="texto_questao"
-                value={pergunta.texto_questao}
-                onChange={handleChange}
-                className="form-textarea"
-                rows="4"
-                placeholder="Digite o texto da pergunta..."
-                required
-              />
-            </div>
-
-            <div className="form-row">
+            <form onSubmit={handleSubmit} className="modal-body">
               <div className="form-group">
-                <label htmlFor="tipo_questao" className="form-label">
-                  Tipo de Questão <span className="required">*</span>
+                <label htmlFor="texto" className="form-label">
+                  <QuestionIcon /> Texto da Pergunta *
                 </label>
-                <select
-                  id="tipo_questao"
-                  name="tipo_questao"
-                  value={pergunta.tipo_questao}
-                  onChange={handleChange}
-                  className="form-select"
+                <textarea
+                  id="texto"
+                  name="texto"
+                  value={formData.texto}
+                  onChange={handleInputChange}
+                  className={`form-input ${errors.texto ? 'error' : ''}`}
+                  placeholder="Digite o texto da pergunta..."
+                  rows={4}
                   required
-                >
-                  <option value="">Selecione o tipo</option>
-                  <option value="Múltipla Escolha">Múltipla Escolha</option>
-                  <option value="Texto Livre">Texto Livre</option>
-                  <option value="Sim/Não">Sim/Não</option>
-                  <option value="Escala">Escala</option>
-                </select>
+                  disabled={temRespostas}
+                />
+                {errors.texto && <span className="error-message">{errors.texto}</span>}
               </div>
 
-              <div className="form-group">
-                <label htmlFor="status" className="form-label">
-                  Status <span className="required">*</span>
-                </label>
-                <select
-                  id="status"
-                  name="status"
-                  value={pergunta.status}
-                  onChange={handleChange}
-                  className="form-select"
-                  required
-                >
-                  <option value="Ativo">Ativo</option>
-                  <option value="Inativo">Inativo</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Opções de Múltipla Escolha */}
-            {pergunta.tipo_questao === 'Múltipla Escolha' && (
-              <div className="form-group">
-                <label className="form-label">
-                  Opções de Resposta <span className="required">*</span>
-                </label>
-                <div className="opcoes-list">
-                  {opcoes.map((opcao, index) => (
-                    <div key={index} className="opcao-item">
-                      <input
-                        type="text"
-                        value={opcao}
-                        onChange={(e) => handleOpcaoChange(index, e.target.value)}
-                        className="form-input"
-                        placeholder={`Opção ${index + 1}`}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveOpcao(index)}
-                        className="btn-remove-opcao"
-                        title="Remover opção"
-                      >
-                        <DeleteIcon />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={handleAddOpcao}
-                    className="btn-add-opcao"
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="tipo" className="form-label">
+                    <TagIcon /> Tipo da Pergunta *
+                  </label>
+                  <select
+                    id="tipo"
+                    name="tipo"
+                    value={formData.tipo}
+                    onChange={handleInputChange}
+                    className={`form-input ${errors.tipo ? 'error' : ''}`}
+                    required
+                    disabled={temRespostas}
                   >
-                    <PlusIcon /> Adicionar Opção
-                  </button>
+                    <option value="Múltipla Escolha">Múltipla Escolha</option>
+                    <option value="Texto Livre">Texto Livre</option>
+                  </select>
+                  {errors.tipo && <span className="error-message">{errors.tipo}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="status" className="form-label">
+                    <ToggleIcon /> Status
+                  </label>
+                  <select
+                    id="status"
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    className="form-input"
+                    disabled={temRespostas}
+                  >
+                    <option value="Ativo">Ativo</option>
+                    <option value="Inativo">Inativo</option>
+                  </select>
                 </div>
               </div>
-            )}
 
-            {/* Info sobre outros tipos */}
-            {pergunta.tipo_questao === 'Texto Livre' && (
-              <div className="form-info">
-                <p>Questões de texto livre permitem que o usuário digite uma resposta aberta.</p>
+              {formData.tipo === 'Múltipla Escolha' && (
+                <div className="form-group">
+                  <label className="form-label">
+                    <CheckIcon /> Opções de Resposta *
+                  </label>
+                  <div className="opcoes-container">
+                    {formData.opcoes.map((opcao, index) => (
+                      <div key={index} className="opcao-item">
+                        <input
+                          type="text"
+                          value={opcao}
+                          onChange={(e) => handleOpcaoChange(index, e.target.value)}
+                          className={`form-input opcao-input ${errors.opcoes && opcao.trim() === '' ? 'error' : ''}`}
+                          placeholder={`Opção ${index + 1}`}
+                          disabled={temRespostas}
+                        />
+                        {formData.opcoes.length > 2 && !temRespostas && (
+                          <button
+                            type="button"
+                            className="btn-remove-opcao"
+                            onClick={() => removerOpcao(index)}
+                            title="Remover opção"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {formData.opcoes.length < 6 && !temRespostas && (
+                      <button
+                        type="button"
+                        className="btn-add-opcao"
+                        onClick={adicionarOpcao}
+                      >
+                        + Adicionar Opção
+                      </button>
+                    )}
+                  </div>
+                  {errors.opcoes && <span className="error-message">{errors.opcoes}</span>}
+                </div>
+              )}
+
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn-secondary"
+                  onClick={handleClose}
+                  disabled={loading}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn-primary"
+                  disabled={loading || temRespostas}
+                >
+                  {loading ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
               </div>
-            )}
-
-            {pergunta.tipo_questao === 'Sim/Não' && (
-              <div className="form-info">
-                <p>Questões Sim/Não apresentam apenas duas opções de resposta.</p>
-              </div>
-            )}
-
-            {pergunta.tipo_questao === 'Escala' && (
-              <div className="form-info">
-                <p>Questões de escala permitem avaliação numérica (geralmente de 1 a 5).</p>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="form-actions">
-              <button type="button" onClick={handleCancel} className="btn-cancel" disabled={loading}>
-                <XIcon /> Cancelar
-              </button>
-              <button type="submit" className="btn-save" disabled={loading}>
-                <SaveIcon /> {loading ? 'Salvando...' : 'Salvar Alterações'}
-              </button>
-            </div>
-          </form>
-        </div>
+            </form>
+          </>
+        )}
       </div>
     </div>
   )
 }
 
 export default EditarPergunta
-

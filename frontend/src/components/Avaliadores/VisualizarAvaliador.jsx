@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { SaveIcon, XIcon, UserIcon, PlusIcon, EditIcon, DeleteIcon, CertificateIcon } from '../common/Icons'
+import { SaveIcon, XIcon, UserIcon, PlusIcon, EditIcon, DeleteIcon, CertificateIcon, ArrowLeftIcon } from '../common/Icons'
 import Toast from '../common/Toast'
 import ConfirmModal from '../common/ConfirmModal'
 import api from '../../services/api'
@@ -403,7 +403,7 @@ function VisualizarAvaliador() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h2>{isEditing ? 'Editar Avaliador' : 'Visualizar Avaliador'}</h2>
+        <h2>Visualizar Avaliador</h2>
       </div>
 
       <div className="dashboard-layout">
@@ -428,131 +428,56 @@ function VisualizarAvaliador() {
               </div>
             </div>
           </div>
+          <div style={{ marginTop: '20px' }}>
+            <button 
+              className="btn-secondary" 
+              onClick={() => navigate('/avaliadores')}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+            >
+              <ArrowLeftIcon /> Voltar
+            </button>
+          </div>
         </div>
 
         {/* Conteúdo Principal */}
         <div className="list-container">
-          {/* Formulário de Edição */}
+          {/* Dados Pessoais - Apenas Visualização */}
           <div className="form-card">
             <h3>Dados Pessoais</h3>
-            <form onSubmit={handleSubmit}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="nome">Nome Completo *</label>
-                  <input
-                    type="text"
-                    id="nome"
-                    name="nome"
-                    value={avaliador.nome}
-                    onChange={handleInputChange}
-                    className="form-input"
-                    disabled={!isEditing}
-                    required
-                  />
+            <div className="data-display">
+              <div className="data-row">
+                <div className="data-item">
+                  <span className="data-label">Nome Completo</span>
+                  <span className="data-value">{avaliador.nome || 'N/A'}</span>
                 </div>
                 
-                <div className="form-group">
-                  <label htmlFor="cpf">CPF</label>
-                  <input
-                    type="text"
-                    id="cpf"
-                    name="cpf"
-                    value={avaliador.cpf}
-                    className="form-input"
-                    disabled
-                  />
+                <div className="data-item">
+                  <span className="data-label">CPF</span>
+                  <span className="data-value">{avaliador.cpf || 'N/A'}</span>
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="email">E-mail *</label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={avaliador.email}
-                    onChange={handleInputChange}
-                    className="form-input"
-                    disabled={!isEditing}
-                    required
-                  />
+              <div className="data-row">
+                <div className="data-item">
+                  <span className="data-label">E-mail</span>
+                  <span className="data-value">{avaliador.email || 'N/A'}</span>
                 </div>
                 
-                <div className="form-group">
-                  <label htmlFor="setor">Setor *</label>
-                  <input
-                    type="text"
-                    id="setor"
-                    name="setor"
-                    value={avaliador.setor}
-                    onChange={handleInputChange}
-                    className="form-input"
-                    disabled={!isEditing}
-                    required
-                  />
+                <div className="data-item">
+                  <span className="data-label">Setor</span>
+                  <span className="data-value">{avaliador.setor || 'N/A'}</span>
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="status">Status *</label>
-                  <select
-                    id="status"
-                    name="status"
-                    value={avaliador.status}
-                    onChange={handleInputChange}
-                    className="form-input"
-                    disabled={!isEditing}
-                    required
-                  >
-                    <option value="Ativo">Ativo</option>
-                    <option value="Inativo">Inativo</option>
-                  </select>
+              <div className="data-row">
+                <div className="data-item">
+                  <span className="data-label">Status</span>
+                  <span className={`badge ${avaliador.status === 'Ativo' ? 'badge-ativo' : 'badge-inativo'}`}>
+                    {avaliador.status || 'N/A'}
+                  </span>
                 </div>
               </div>
-
-              {isEditing && (
-                <div className="form-actions">
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={handleCancel}
-                    disabled={saving}
-                  >
-                    <XIcon /> Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-primary"
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <>
-                        <div className="spinner-small"></div>
-                        Salvando...
-                      </>
-                    ) : (
-                      <>
-                        <SaveIcon /> Salvar Alterações
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-
-              {!isEditing && (
-                <div className="form-actions">
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => setIsEditing(true)}
-                  >
-                    <EditIcon /> Editar Dados
-                  </button>
-                </div>
-              )}
-            </form>
+            </div>
           </div>
 
           {/* Lista de Certificados */}
@@ -606,13 +531,6 @@ function VisualizarAvaliador() {
             )}
           </div>
         </div>
-      </div>
-
-      {/* Botão flutuante de voltar no canto inferior direito */}
-      <div className="floating-actions">
-        <button className="btn-secondary" onClick={() => navigate('/avaliadores')}>
-          <XIcon /> Voltar
-        </button>
       </div>
 
       {/* Modal de Adicionar Certificado */}
@@ -1061,8 +979,40 @@ function VisualizarAvaliador() {
           color: #991b1b;
         }
 
+        .data-display {
+          padding: 20px 0;
+        }
+
+        .data-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          margin-bottom: 20px;
+        }
+
+        .data-item {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .data-label {
+          font-size: 14px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .data-value {
+          font-size: 16px;
+          color: #1f2937;
+          font-weight: 500;
+        }
+
         @media (max-width: 768px) {
-          .form-row {
+          .form-row,
+          .data-row {
             grid-template-columns: 1fr;
           }
 

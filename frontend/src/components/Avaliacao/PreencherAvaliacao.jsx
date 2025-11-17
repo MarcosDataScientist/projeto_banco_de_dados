@@ -10,6 +10,7 @@ function PreencherAvaliacao() {
   const [avaliacao, setAvaliacao] = useState(null)
   const [perguntas, setPerguntas] = useState([])
   const [respostas, setRespostas] = useState({})
+  const [rating, setRating] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState({})
@@ -41,6 +42,11 @@ function PreencherAvaliacao() {
       }
 
       setAvaliacao(avaliacaoData)
+      
+      // Carregar rating existente se houver
+      if (avaliacaoData.rating !== null && avaliacaoData.rating !== undefined) {
+        setRating(avaliacaoData.rating.toString())
+      }
       
       // Carregar perguntas do questionário
       // O campo pode ser questionario_id ou questionario_cod dependendo do modelo
@@ -198,28 +204,24 @@ function PreencherAvaliacao() {
       
       await Promise.all(promises)
       
-      // Atualizar status da avaliação para concluída apenas se ainda não estiver concluída (rating < 4 ou null)
-      const ratingAtual = avaliacao?.rating
-      const precisaAtualizar = ratingAtual === null || ratingAtual === undefined || ratingAtual < 4
-      
-      if (precisaAtualizar) {
+      // Atualizar rating da avaliação se foi informado
+      if (rating && rating.trim() !== '') {
         try {
-          await api.atualizarStatusAvaliacao(parseInt(id), {
-            rating: 4  // 4 ou mais = "Concluída" de acordo com getStatusText
-          })
-          console.log('Status da avaliação atualizado para concluída')
-          // Mostrar toast de sucesso
-          showToast('success', 'Avaliação concluída!', 'As respostas foram salvas com sucesso e a avaliação foi marcada como concluída.')
+          const ratingValue = parseInt(rating)
+          if (!isNaN(ratingValue) && ratingValue >= 1 && ratingValue <= 5) {
+            await api.atualizarStatusAvaliacao(parseInt(id), {
+              rating: ratingValue
+            })
+            console.log('Rating da avaliação atualizado:', ratingValue)
+          }
         } catch (error) {
-          console.error('Erro ao atualizar status da avaliação:', error)
-          // Não impedir o sucesso mesmo se a atualização do status falhar
-          // As respostas já foram salvas
-          showToast('success', 'Respostas salvas!', 'As respostas foram salvas com sucesso.')
+          console.error('Erro ao atualizar rating da avaliação:', error)
+          // Não impedir o sucesso mesmo se a atualização do rating falhar
         }
-      } else {
-        // Avaliação já estava concluída, apenas atualizar respostas
-        showToast('success', 'Respostas atualizadas!', 'As respostas foram atualizadas com sucesso.')
       }
+      
+      // Mostrar toast de sucesso
+      showToast('success', 'Avaliação concluída!', 'As respostas foram salvas com sucesso.')
       
       // Redirecionar para a listagem após 1.5 segundos
       setTimeout(() => {
@@ -423,6 +425,33 @@ function PreencherAvaliacao() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Campo de Rating */}
+            <div className="form-section" style={{ marginTop: '32px', paddingTop: '24px', borderTop: '2px solid #e0e0e0' }}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="rating">
+                  Nota Final (Rating)
+                </label>
+                <select
+                  id="rating"
+                  name="rating"
+                  value={rating}
+                  onChange={(e) => setRating(e.target.value)}
+                  className="form-input"
+                  style={{ maxWidth: '200px' }}
+                >
+                  <option value="">Selecione uma nota</option>
+                  <option value="1">1 - Muito Insatisfeito</option>
+                  <option value="2">2 - Insatisfeito</option>
+                  <option value="3">3 - Neutro</option>
+                  <option value="4">4 - Satisfeito</option>
+                  <option value="5">5 - Muito Satisfeito</option>
+                </select>
+                <p style={{ marginTop: '8px', fontSize: '13px', color: '#666' }}>
+                  Opcional: Avalie a experiência geral desta avaliação.
+                </p>
+              </div>
             </div>
 
             {/* Botões de Ação */}

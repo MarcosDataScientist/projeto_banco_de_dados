@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { SaveIcon, XIcon, UserIcon } from '../common/Icons'
+import { SaveIcon, XIcon, UserIcon, EditIcon, ArrowLeftIcon } from '../common/Icons'
 import Toast from '../common/Toast'
 import api from '../../services/api'
 
@@ -26,6 +26,7 @@ const formatStatusValue = (status) => {
 function EditarFuncionario() {
   const { id } = useParams() // id aqui é o CPF
   const navigate = useNavigate()
+  const [isEditing, setIsEditing] = useState(false)
   
   const [funcionario, setFuncionario] = useState({
     cpf: '',
@@ -48,6 +49,7 @@ function EditarFuncionario() {
 
   useEffect(() => {
     carregarDados()
+    setIsEditing(false) // Garantir que inicia em modo visualização
   }, [id])
 
   const carregarDados = async () => {
@@ -107,10 +109,11 @@ function EditarFuncionario() {
       await api.atualizarFuncionario(id, dadosParaEnvio)
       setToast({ show: true, type: 'success', title: 'Funcionário atualizado!', message: 'As alterações foram salvas com sucesso.' })
       
-      // Aguardar um pouco para mostrar o toast antes de navegar
-      setTimeout(() => {
-        navigate('/funcionarios')
-      }, 1500)
+      // Desativar modo de edição após salvar
+      setIsEditing(false)
+      
+      // Recarregar dados para garantir que está atualizado
+      await carregarDados()
     } catch (err) {
       console.error('Erro ao atualizar funcionário:', err)
       setToast({ show: true, type: 'error', title: 'Erro ao atualizar', message: 'Não foi possível atualizar o funcionário. Tente novamente.' })
@@ -119,8 +122,25 @@ function EditarFuncionario() {
     }
   }
 
-  const handleCancel = () => {
-    navigate('/funcionarios')
+  const handleCancel = (e) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    if (isEditing) {
+      // Se estava editando, recarregar dados e desativar edição
+      carregarDados()
+      setIsEditing(false)
+    } else {
+      // Se estava apenas visualizando, voltar para a lista
+      navigate('/funcionarios')
+    }
+  }
+
+  const handleEditClick = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsEditing(true)
   }
 
   const getInitials = (name) => {
@@ -158,8 +178,8 @@ function EditarFuncionario() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h2>Editar Funcionário</h2>
-        <p>Atualize as informações do funcionário</p>
+        <h2>{isEditing ? 'Editar Funcionário' : 'Visualizar Funcionário'}</h2>
+        <p>{isEditing ? 'Atualize as informações do funcionário' : 'Visualize as informações do funcionário'}</p>
       </div>
 
       <div className="form-container">
@@ -190,6 +210,7 @@ function EditarFuncionario() {
                   onChange={handleChange}
                   className="form-input"
                   required
+                  disabled={!isEditing}
                 />
               </div>
 
@@ -224,6 +245,7 @@ function EditarFuncionario() {
                   className="form-input"
                   placeholder="email@empresa.com"
                   required
+                  disabled={!isEditing}
                 />
               </div>
 
@@ -239,6 +261,7 @@ function EditarFuncionario() {
                   onChange={handleChange}
                   className="form-input"
                   placeholder="00000/0000"
+                  disabled={!isEditing}
                 />
               </div>
             </div>
@@ -256,6 +279,7 @@ function EditarFuncionario() {
                     onChange={handleChange}
                     className="form-select"
                     required
+                    disabled={!isEditing}
                   >
                     <option value="">Selecione um departamento</option>
                     {setores.map((dept) => (
@@ -274,6 +298,7 @@ function EditarFuncionario() {
                     className="form-input"
                     placeholder="Digite o setor"
                     required
+                    disabled={!isEditing}
                   />
                 )}
               </div>
@@ -290,6 +315,7 @@ function EditarFuncionario() {
                   onChange={handleChange}
                   className="form-input"
                   placeholder="Ex: Desenvolvedor, Analista"
+                  disabled={!isEditing}
                 />
               </div>
             </div>
@@ -306,6 +332,7 @@ function EditarFuncionario() {
                   onChange={handleChange}
                   className="form-select"
                   required
+                  disabled={!isEditing}
                 >
                   {STATUS_OPTIONS.map(option => (
                     <option key={option.value} value={option.value}>
@@ -318,12 +345,25 @@ function EditarFuncionario() {
 
             {/* Action Buttons */}
             <div className="form-actions">
-              <button type="button" onClick={handleCancel} className="btn-cancel" disabled={loading}>
-                <XIcon /> Cancelar
-              </button>
-              <button type="submit" className="btn-save" disabled={loading}>
-                <SaveIcon /> {loading ? 'Salvando...' : 'Salvar Alterações'}
-              </button>
+              {isEditing ? (
+                <>
+                  <button type="button" onClick={handleCancel} className="btn-cancel" disabled={loading}>
+                    <XIcon /> Cancelar
+                  </button>
+                  <button type="submit" className="btn-save" disabled={loading}>
+                    <SaveIcon /> {loading ? 'Salvando...' : 'Salvar Alterações'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={handleCancel} className="btn-secondary" disabled={loading}>
+                    <ArrowLeftIcon /> Voltar
+                  </button>
+                  <button type="button" onClick={handleEditClick} className="btn-primary" disabled={loading}>
+                    <EditIcon /> Editar Funcionário
+                  </button>
+                </>
+              )}
             </div>
           </form>
         </div>

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { SearchIcon, PlusIcon, EyeIcon, FormsIcon, DeleteIcon, EditIcon } from '../common/Icons'
 import ConfirmDeleteQuestionario from './ConfirmDeleteQuestionario'
-import VisualizarQuestionario from './VisualizarQuestionario'
 import Toast from '../common/Toast'
 import api from '../../services/api'
 
@@ -15,8 +14,12 @@ function Formularios() {
   const [error, setError] = useState(null)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [questionarioToDelete, setQuestionarioToDelete] = useState(null)
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
-  const [questionarioToView, setQuestionarioToView] = useState(null)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    per_page: 10,
+    total: 0,
+    total_pages: 0
+  })
   
   // Estado do Toast
   const [toast, setToast] = useState({
@@ -72,8 +75,7 @@ function Formularios() {
   }
 
   const handleViewClick = (formulario) => {
-    setQuestionarioToView(formulario)
-    setIsViewModalOpen(true)
+    navigate(`/questionarios/editar/${formulario.id}?view=true`)
   }
 
   const handleDeleteClick = (formulario) => {
@@ -131,10 +133,6 @@ function Formularios() {
     setQuestionarioToDelete(null)
   }
 
-  const handleCloseViewModal = () => {
-    setIsViewModalOpen(false)
-    setQuestionarioToView(null)
-  }
 
   const showToast = (type, title, message) => {
     setToast({
@@ -158,6 +156,32 @@ function Formularios() {
       formulario.classificacao?.toLowerCase().includes(searchLower)
     )
   })
+
+  // Calcular paginação
+  const totalItems = filteredFormularios.length
+  const totalPages = Math.ceil(totalItems / pagination.per_page)
+  const startIndex = (pagination.page - 1) * pagination.per_page
+  const endIndex = startIndex + pagination.per_page
+  const paginatedFormularios = filteredFormularios.slice(startIndex, endIndex)
+
+  // Atualizar paginação quando os dados mudarem
+  useEffect(() => {
+    setPagination(prev => ({
+      ...prev,
+      total: totalItems,
+      total_pages: totalPages,
+      page: prev.page > totalPages && totalPages > 0 ? totalPages : prev.page
+    }))
+  }, [totalItems, totalPages])
+
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({
+      ...prev,
+      page: newPage
+    }))
+    // Scroll para o topo da lista
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const getStatusBadgeColor = (status) => {
     switch (status) {
@@ -254,8 +278,9 @@ function Formularios() {
             <p>{searchTerm ? 'Tente ajustar os termos de busca' : 'Crie seu primeiro formulário para começar'}</p>
           </div>
         ) : (
-          <div className="items-list">
-            {filteredFormularios.map(formulario => (
+          <>
+            <div className="items-list">
+              {paginatedFormularios.map(formulario => (
               <div key={formulario.id} className="list-item">
                 <div className="item-main">
                   <div className="item-header">
@@ -295,8 +320,9 @@ function Formularios() {
                   </button>
                   <button 
                     className="btn-action btn-edit" 
-                    title="Editar questionário"
+                    title={(formulario.total_aplicacoes || 0) > 0 ? 'Não é possível editar: questionário possui aplicações vinculadas' : 'Editar questionário'}
                     onClick={() => navigate(`/questionarios/editar/${formulario.id}`)}
+                    disabled={(formulario.total_aplicacoes || 0) > 0}
                   >
                     <EditIcon />
                   </button>
@@ -309,17 +335,86 @@ function Formularios() {
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {/* Paginação */}
+            {totalItems > 0 && (
+              <div className="pagination-container">
+                <div className="pagination-info">
+                  <span>
+                    Mostrando {startIndex + 1} a {Math.min(endIndex, totalItems)} de {totalItems} questionários
+                  </span>
+                </div>
+                
+                <div className="pagination-controls">
+                  <button 
+                    className="pagination-btn"
+                    onClick={() => handlePageChange(1)}
+                    disabled={pagination.page === 1}
+                    title="Primeira página"
+                  >
+                    ««
+                  </button>
+                  
+                  <button 
+                    className="pagination-btn"
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={pagination.page === 1}
+                    title="Página anterior"
+                  >
+                    «
+                  </button>
+                  
+                  <div className="pagination-pages">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (pagination.page <= 3) {
+                        pageNum = i + 1;
+                      } else if (pagination.page >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = pagination.page - 2 + i;
+                      }
+                      
+                      return (
+                        <button
+                          key={pageNum}
+                          className={`pagination-btn ${pageNum === pagination.page ? 'active' : ''}`}
+                          onClick={() => handlePageChange(pageNum)}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  <button 
+                    className="pagination-btn"
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={pagination.page >= totalPages}
+                    title="Próxima página"
+                  >
+                    »
+                  </button>
+                  
+                  <button 
+                    className="pagination-btn"
+                    onClick={() => handlePageChange(totalPages)}
+                    disabled={pagination.page >= totalPages}
+                    title="Última página"
+                  >
+                    »»
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
         </div>
       </div>
-
-      <VisualizarQuestionario
-        isOpen={isViewModalOpen}
-        onClose={handleCloseViewModal}
-        questionario={questionarioToView}
-      />
 
       <ConfirmDeleteQuestionario
         isOpen={isDeleteModalOpen}

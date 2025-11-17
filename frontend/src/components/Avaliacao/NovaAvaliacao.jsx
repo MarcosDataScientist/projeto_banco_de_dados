@@ -172,8 +172,19 @@ function NovaAvaliacao() {
     setToast(prev => ({ ...prev, show: false }))
   }
 
-  // Filtrar funcionários com base na busca
+  // Filtrar funcionários com base na busca e excluir o selecionado e o avaliador selecionado
   const funcionariosFiltrados = funcionarios.filter(funcionario => {
+    // Excluir o funcionário selecionado da lista
+    if (formData.funcionarioCpf && funcionario.cpf === formData.funcionarioCpf) {
+      return false
+    }
+    
+    // Excluir o avaliador selecionado da lista de funcionários (não pode ser o mesmo)
+    if (formData.avaliadorCpf && funcionario.cpf === formData.avaliadorCpf) {
+      return false
+    }
+    
+    // Aplicar filtro de busca
     if (!searchTerm.trim()) return true
     const termo = searchTerm.toLowerCase()
     return (
@@ -184,8 +195,19 @@ function NovaAvaliacao() {
     )
   })
 
-  // Filtrar avaliadores com base na busca
+  // Filtrar avaliadores com base na busca e excluir o selecionado e o funcionário selecionado
   const avaliadoresFiltrados = avaliadores.filter(avaliador => {
+    // Excluir o avaliador selecionado da lista
+    if (formData.avaliadorCpf && avaliador.cpf === formData.avaliadorCpf) {
+      return false
+    }
+    
+    // Excluir o funcionário selecionado da lista de avaliadores (não pode ser o mesmo)
+    if (formData.funcionarioCpf && avaliador.cpf === formData.funcionarioCpf) {
+      return false
+    }
+    
+    // Aplicar filtro de busca
     if (!searchTermAvaliadores.trim()) return true
     const termo = searchTermAvaliadores.toLowerCase()
     return (
