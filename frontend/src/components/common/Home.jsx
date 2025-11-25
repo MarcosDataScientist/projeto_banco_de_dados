@@ -1,33 +1,127 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import api from '../../services/api'
-import ConfirmModal from './ConfirmModal'
+import QuestionariosBarChart from '../Dashboard/charts/QuestionariosBarChart'
+import RespostasBarChart from '../Dashboard/charts/RespostasBarChart'
+import AvaliacoesTempoBarChart from '../Dashboard/charts/AvaliacoesTempoBarChart'
+import SetoresPieChart from '../Dashboard/charts/SetoresPieChart'
+import SetorAvaliadoresChart from '../Dashboard/SetorAvaliadoresChart'
 
 function Home() {
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
+  // Estados para cada conjunto de dados
+  const [questionarios, setQuestionarios] = useState([])
+  const [respostas, setRespostas] = useState([])
+  const [avaliacoesTempo, setAvaliacoesTempo] = useState([])
+  const [setores, setSetores] = useState([])
+  const [avaliadoresPorSetor, setAvaliadoresPorSetor] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [setorSelecionado, setSetorSelecionado] = useState(null)
 
-  const handleDeleteClick = () => {
-    setIsDeleteModalOpen(true)
-  }
+  // Buscar todos os dados ao montar
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
 
-  const handleCloseDeleteModal = () => {
-    setIsDeleteModalOpen(false)
-  }
+        // Buscar dados de todas as APIs em paralelo
+        const [
+          questionariosData,
+          respostasData,
+          avaliacoesTempoData,
+          setoresData,
+          avaliadoresData
+        ] = await Promise.all([
+          api.getQuestionariosUsados().catch(() => []),
+          api.getRespostasFrequencia().catch(() => []),
+          api.getAvaliacoesTempo(2).catch(() => []),
+          api.getAvaliacoesSetor().catch(() => []),
+          api.getAvaliadoresPorSetor().catch(() => [])
+        ])
 
-  const handleConfirmDelete = async () => {
-    try {
-      setLoading(true)
-      await api.limparBancoDados()
-      alert('Todos os dados foram excluídos com sucesso!')
-      setIsDeleteModalOpen(false)
-      // Recarregar a página para refletir as mudanças
-      window.location.reload()
-    } catch (error) {
-      console.error('Erro ao excluir dados:', error)
-      alert(error.response?.data?.error || 'Erro ao excluir dados do banco. Tente novamente.')
-    } finally {
-      setLoading(false)
+        setQuestionarios(questionariosData || [])
+        setRespostas(respostasData || [])
+        setAvaliacoesTempo(avaliacoesTempoData || [])
+        setSetores(setoresData || [])
+        setAvaliadoresPorSetor(avaliadoresData || [])
+      } catch (err) {
+        console.error('Erro ao carregar dados do dashboard:', err)
+        setError('Erro ao carregar dados do dashboard. Tente recarregar a página.')
+      } finally {
+        setLoading(false)
+      }
     }
+
+    fetchData()
+  }, [])
+
+  const handleSetorClick = (setor) => {
+    setSetorSelecionado(setor)
+  }
+
+  const handleLimparSelecao = () => {
+    setSetorSelecionado(null)
+  }
+
+  if (loading) {
+    return (
+      <div className="page-container">
+        <div className="page-header">
+          <h2>Dashboard</h2>
+        </div>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: '400px',
+          flexDirection: 'column',
+          gap: '20px'
+        }}>
+          <div className="spinner" style={{
+            width: '40px',
+            height: '40px',
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #2196f3',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}></div>
+          <p style={{ color: '#666' }}>Carregando dados do dashboard...</p>
+        </div>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="page-container">
+        <div className="page-header">
+          <h2>Dashboard</h2>
+        </div>
+        <div style={{ 
+          padding: '40px', 
+          textAlign: 'center', 
+          color: '#d32f2f',
+          background: '#ffebee',
+          borderRadius: '8px',
+          margin: '20px 0'
+        }}>
+          <p>{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="btn-primary"
+            style={{ marginTop: '20px' }}
+          >
+            Recarregar Página
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -35,83 +129,84 @@ function Home() {
       <div className="page-header">
         <div>
           <h2>Dashboard</h2>
+          <p style={{ margin: '8px 0 0 0', color: '#666', fontSize: '14px' }}>
+            Visualizações e insights do sistema de avaliação
+          </p>
         </div>
       </div>
 
-      <p 
-        className="dashboard-placeholder-text"
-        style={{
-          margin: '0 0 24px 0',
-          fontSize: '18px',
-          fontWeight: 500,
-          maxWidth: '800px',
-          marginInline: 'auto',
-          lineHeight: 1.5,
-          textAlign: 'center'
-        }}
-      >
-        O Marcos não implementou nada da tela de dashboard ainda. Ele será o primeiro demitido do projeto.
-      </p>
+      <div className="dashboard-grid">
+        {/* Gráfico de Questionários */}
+        <div className="dashboard-card">
+          <QuestionariosBarChart data={questionarios} />
+        </div>
 
-      <div 
-        className="dashboard-placeholder"
-        style={{
-          position: 'relative',
-          width: '100%',
-          minHeight: '60vh',
-          borderRadius: '16px',
-          overflow: 'hidden',
-          backgroundImage: 'url(/roberto_justus.jpg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.25)',
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'center',
-          paddingTop: '40px'
-        }}
-      >
-        <h1
-          style={{
-            margin: 0,
-            fontSize: '64px',
-            fontWeight: 'bold',
-            color: '#ffffff',
-            textShadow: '2px 2px 8px rgba(0, 0, 0, 0.8)',
-            letterSpacing: '4px'
-          }}
-        >
-          MARCOS
-        </h1>
+        {/* Gráfico de Respostas */}
+        <div className="dashboard-card">
+          <RespostasBarChart data={respostas} />
+        </div>
+
+        {/* Gráfico de Avaliações por Tempo */}
+        <div className="dashboard-card">
+          <AvaliacoesTempoBarChart data={avaliacoesTempo} />
+        </div>
+
+        {/* Gráfico de Pizza - Setores */}
+        <div className="dashboard-card">
+          <SetoresPieChart 
+            data={setores} 
+            onSetorClick={handleSetorClick}
+          />
+        </div>
+
+        {/* Gráfico de Avaliadores por Setor (aparece quando um setor é selecionado) */}
+        {setorSelecionado && (
+          <div className="dashboard-card" style={{ gridColumn: '1 / -1' }}>
+            <SetorAvaliadoresChart 
+              data={avaliadoresPorSetor}
+              setor={setorSelecionado}
+            />
+            <button
+              onClick={handleLimparSelecao}
+              style={{
+                marginTop: '20px',
+                padding: '10px 20px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                background: 'white',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 500
+              }}
+            >
+              ← Voltar para visão geral
+            </button>
+          </div>
+        )}
       </div>
 
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        marginTop: '30px'
-      }}>
-        <button
-          onClick={handleDeleteClick}
-          className="btn-primary"
-          style={{
-            background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
-            boxShadow: '0 4px 12px rgba(244, 67, 54, 0.3)'
-          }}
-          disabled={loading}
-        >
-          {loading ? 'Excluindo...' : '🗑️ Excluir Todos os Dados do Banco Antes de Ser Demitido'}
-        </button>
-      </div>
-
-      <ConfirmModal
-        isOpen={isDeleteModalOpen}
-        onClose={handleCloseDeleteModal}
-        onConfirm={handleConfirmDelete}
-        title="⚠️ Confirmar Exclusão de Todos os Dados"
-        message="ATENÇÃO: Esta ação irá excluir TODOS os dados do banco de dados, incluindo funcionários, questionários, perguntas, avaliações e respostas. Esta ação NÃO PODE ser desfeita!"
-        confirmText="Sim, Excluir Tudo"
-        cancelText="Cancelar"
-      />
+      {/* Mensagem quando não há dados */}
+      {!loading && 
+       questionarios.length === 0 && 
+       respostas.length === 0 && 
+       avaliacoesTempo.length === 0 && 
+       setores.length === 0 && (
+        <div style={{ 
+          padding: '40px', 
+          textAlign: 'center', 
+          color: '#666',
+          background: '#f5f5f5',
+          borderRadius: '8px',
+          margin: '20px 0'
+        }}>
+          <p style={{ fontSize: '16px', marginBottom: '10px' }}>
+            Nenhum dado disponível para exibir
+          </p>
+          <p style={{ fontSize: '14px', color: '#999' }}>
+            Crie avaliações, questionários e respostas para ver os gráficos
+          </p>
+        </div>
+      )}
     </div>
   )
 }

@@ -167,6 +167,7 @@ class DashboardModel:
         """Distribuição de respostas de escolha"""
         query = """
             SELECT 
+                q.cod_questao,
                 q.texto_questao AS pergunta,
                 re.escolha AS resposta,
                 COUNT(*) AS quantidade
@@ -175,7 +176,7 @@ class DashboardModel:
             JOIN Resposta_Escolha re ON r.cod_resposta = re.resposta_cod
             WHERE r.tipo_resposta = 'Escolha'
             GROUP BY q.cod_questao, q.texto_questao, re.escolha
-            ORDER BY q.texto_questao, quantidade DESC
+            ORDER BY q.cod_questao, quantidade DESC
         """
         
         return execute_query(query)
@@ -290,6 +291,46 @@ class DashboardModel:
             WHERE t.validade BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
             GROUP BY t.cod_treinamento, t.nome, t.validade
             ORDER BY t.validade
+        """
+        
+        return execute_query(query)
+    
+    @staticmethod
+    def avaliacoes_por_tempo(anos=2):
+        """Retorna avaliações por mês/ano nos últimos N anos"""
+        query = """
+            SELECT 
+                TO_CHAR(data_completa, 'YYYY-MM') AS periodo,
+                TO_CHAR(data_completa, 'Mon YYYY') AS periodo_formatado,
+                EXTRACT(YEAR FROM data_completa)::INTEGER AS ano,
+                EXTRACT(MONTH FROM data_completa)::INTEGER AS mes,
+                COUNT(*) AS total
+            FROM Avaliacao
+            WHERE data_completa >= CURRENT_DATE - INTERVAL '%s years'
+            GROUP BY TO_CHAR(data_completa, 'YYYY-MM'), 
+                     TO_CHAR(data_completa, 'Mon YYYY'),
+                     EXTRACT(YEAR FROM data_completa),
+                     EXTRACT(MONTH FROM data_completa)
+            ORDER BY ano, mes
+        """
+        
+        return execute_query(query, (anos,))
+    
+    @staticmethod
+    def avaliacoes_por_setor_e_avaliador():
+        """Retorna avaliações agrupadas por setor e avaliador"""
+        query = """
+            SELECT 
+                f.setor AS setor,
+                av.nome AS avaliador_nome,
+                av.cpf AS avaliador_cpf,
+                COUNT(a.cod_avaliacao) AS total_avaliacoes
+            FROM Avaliacao a
+            JOIN Funcionario f ON a.avaliado_cpf = f.cpf
+            JOIN Funcionario av ON a.avaliador_cpf = av.cpf
+            WHERE f.setor IS NOT NULL
+            GROUP BY f.setor, av.nome, av.cpf
+            ORDER BY f.setor, total_avaliacoes DESC
         """
         
         return execute_query(query)
