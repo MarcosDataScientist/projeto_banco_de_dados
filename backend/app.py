@@ -79,6 +79,52 @@ def get_atividades_recentes():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/dashboard/questionarios-usados', methods=['GET'])
+def get_questionarios_usados():
+    """Retorna frequência de uso dos questionários"""
+    try:
+        data = DashboardModel.questionarios_mais_usados()
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/respostas-frequencia', methods=['GET'])
+def get_respostas_frequencia():
+    """Retorna frequência de cada resposta"""
+    try:
+        data = DashboardModel.distribuicao_respostas_escolha()
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/avaliacoes-tempo', methods=['GET'])
+def get_avaliacoes_tempo():
+    """Retorna avaliações por mês/ano"""
+    try:
+        anos = request.args.get('anos', 2, type=int)
+        data = DashboardModel.avaliacoes_por_tempo(anos)
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/avaliacoes-setor', methods=['GET'])
+def get_avaliacoes_setor():
+    """Retorna avaliações por setor"""
+    try:
+        data = DashboardModel.avaliacoes_por_setor()
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/avaliadores-por-setor', methods=['GET'])
+def get_avaliadores_por_setor():
+    """Retorna avaliadores e suas contribuições por setor"""
+    try:
+        data = DashboardModel.avaliacoes_por_setor_e_avaliador()
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # ==========================================
 # ROTAS API - PERGUNTAS
 # ==========================================

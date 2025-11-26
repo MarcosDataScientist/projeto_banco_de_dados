@@ -57,6 +57,26 @@ class ApiService {
     return this.request(`/dashboard/atividades-recentes?limite=${limite}`)
   }
 
+  async getQuestionariosUsados() {
+    return this.request('/dashboard/questionarios-usados')
+  }
+
+  async getRespostasFrequencia() {
+    return this.request('/dashboard/respostas-frequencia')
+  }
+
+  async getAvaliacoesTempo(anos = 2) {
+    return this.request(`/dashboard/avaliacoes-tempo?anos=${anos}`)
+  }
+
+  async getAvaliacoesSetor() {
+    return this.request('/dashboard/avaliacoes-setor')
+  }
+
+  async getAvaliadoresPorSetor() {
+    return this.request('/dashboard/avaliadores-por-setor')
+  }
+
   // ==========================================
   // FUNCIONÁRIOS
   // ==========================================

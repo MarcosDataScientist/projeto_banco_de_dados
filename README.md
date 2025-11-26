@@ -30,7 +30,7 @@ Edite o arquivo `.env` e ajuste as configurações conforme necessário:
 1. No `.env`, altere `VITE_API_URL` para usar o IP da sua máquina (ex: `http://192.168.1.100:5001/api`)
 2. A URL da API é a única variável que seu amigo precisa alterar facilmente!
 
-### 2. Instalar Dependências
+### 2. Configurar Ambiente Virtual Python
 
 #### Backend (Flask)
 
@@ -38,9 +38,22 @@ Edite o arquivo `.env` e ajuste as configurações conforme necessário:
 # Navegar para a pasta backend
 cd backend
 
+# Criar ambiente virtual (apenas na primeira vez)
+python3 -m venv venv
+
+# Ativar o ambiente virtual
+# No macOS/Linux:
+source venv/bin/activate
+
+# No Windows:
+# venv\Scripts\activate
+
 # Instalar dependências Python
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
+
+**Importante**: Sempre ative o ambiente virtual antes de executar o backend. Você saberá que está ativado quando ver `(venv)` no início da linha do terminal.
 
 #### Frontend (React)
 
@@ -59,6 +72,8 @@ npm install
 1. **Iniciar o backend Flask** (Terminal 1):
 ```bash
 cd backend
+source venv/bin/activate  # Ativar ambiente virtual (macOS/Linux)
+# ou: venv\Scripts\activate  # No Windows
 python run.py
 ```
 O servidor Flask estará rodando na rota configurada em `.env`
