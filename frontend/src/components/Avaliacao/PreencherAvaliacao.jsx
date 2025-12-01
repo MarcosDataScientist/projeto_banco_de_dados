@@ -59,35 +59,21 @@ function PreencherAvaliacao() {
         console.log('Questionário carregado:', questionario)
         
         if (questionario?.perguntas && questionario.perguntas.length > 0) {
-          // Processar perguntas: garantir que opcoes seja um array
+          // Modelo 2: backend já retorna perguntas + opções da tabela Opcao.
+          // Apenas normalizamos o formato para o front.
           const perguntasProcessadas = questionario.perguntas.map(pergunta => {
-            let opcoes = pergunta.opcoes
+            const opcoesBrutas = Array.isArray(pergunta.opcoes) ? pergunta.opcoes : []
             
-            console.log('Processando pergunta:', pergunta.id, 'Tipo:', pergunta.tipo, 'Opções:', opcoes)
-            
-            // Se opcoes for uma string JSON, fazer parse
-            if (typeof opcoes === 'string') {
-              try {
-                opcoes = JSON.parse(opcoes)
-              } catch (e) {
-                console.warn('Erro ao fazer parse das opções:', e)
-                opcoes = []
-              }
-            }
-            
-            // Se opcoes não for um array, tentar converter
-            if (!Array.isArray(opcoes) && opcoes) {
-              // Se for um objeto, tentar converter para array
-              if (typeof opcoes === 'object') {
-                opcoes = Object.values(opcoes)
-              } else {
-                opcoes = [opcoes]
-              }
-            }
+            const opcoes = opcoesBrutas.map(op => ({
+              cod_opcao: op.cod_opcao,
+              texto_opcao: op.texto_opcao,
+              ordem: op.ordem
+            })).filter(op => op.cod_opcao != null)
             
             return {
               ...pergunta,
-              opcoes: Array.isArray(opcoes) ? opcoes : []
+              tipo: 'Múltipla Escolha',
+              opcoes
             }
           })
           
@@ -100,20 +86,15 @@ function PreencherAvaliacao() {
             respostasIniciais[pergunta.id] = ''
           })
           
-          // Se a avaliação já tem respostas, carregar elas
+          // Se a avaliação já tem respostas, carregar elas (Modelo 2 usa opcao_cod)
           if (avaliacaoData.respostas && Array.isArray(avaliacaoData.respostas) && avaliacaoData.respostas.length > 0) {
             console.log('Carregando respostas existentes:', avaliacaoData.respostas)
             avaliacaoData.respostas.forEach(resposta => {
               // Usar questao_cod que vem do backend
               const questaoCod = resposta.questao_cod
               if (questaoCod && respostasIniciais.hasOwnProperty(questaoCod)) {
-                // Se for resposta de texto, usar texto_resposta
-                if (resposta.tipo_resposta === 'Texto' && resposta.texto_resposta) {
-                  respostasIniciais[questaoCod] = resposta.texto_resposta
-                }
-                // Se for resposta de escolha, usar escolha
-                else if (resposta.tipo_resposta === 'Escolha' && resposta.escolha) {
-                  respostasIniciais[questaoCod] = resposta.escolha
+                if (resposta.opcao_cod) {
+                  respostasIniciais[questaoCod] = resposta.opcao_cod.toString()
                 }
               }
             })
@@ -160,11 +141,17 @@ function PreencherAvaliacao() {
   const validateForm = () => {
     const newErrors = {}
     
+    // Todas as perguntas do questionário são obrigatórias
     perguntas.forEach(pergunta => {
       if (!respostas[pergunta.id] || respostas[pergunta.id].trim() === '') {
         newErrors[pergunta.id] = 'Esta pergunta é obrigatória'
       }
     })
+
+    // Nota final (rating) obrigatória
+    if (!rating || rating.trim() === '') {
+      newErrors['_rating'] = 'A nota final é obrigatória para concluir a avaliação'
+    }
     
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -184,19 +171,12 @@ function PreencherAvaliacao() {
       // Salvar cada resposta
       const promises = perguntas.map(pergunta => {
         const resposta = respostas[pergunta.id]
-        const tipoResposta = pergunta.tipo === 'Múltipla Escolha' ? 'Escolha' : 'Texto'
         
+        // Modelo 2: todas as perguntas são de múltipla escolha, salvar via opcao_cod
         const dadosResposta = {
-          avaliacao_cod: parseInt(id),
+          avaliacao_cod: parseInt(id, 10),
           questao_cod: pergunta.id,
-          tipo_resposta: tipoResposta
-        }
-        
-        // Adicionar texto ou escolha conforme o tipo
-        if (tipoResposta === 'Texto') {
-          dadosResposta.texto_resposta = resposta
-        } else {
-          dadosResposta.escolha = resposta
+          opcao_cod: resposta ? parseInt(resposta, 10) : null
         }
         
         return api.salvarRespostaAvaliacao(dadosResposta)
@@ -381,8 +361,8 @@ function PreencherAvaliacao() {
                                   type="radio"
                                   id={`opcao-${pergunta.id}-${idx}`}
                                   name={`pergunta-${pergunta.id}`}
-                                  value={opcao}
-                                  checked={respostas[pergunta.id] === opcao}
+                                  value={String(opcao.cod_opcao)}
+                                  checked={respostas[pergunta.id] === String(opcao.cod_opcao)}
                                   onChange={(e) => handleRespostaChange(pergunta.id, e.target.value)}
                                   style={{
                                     width: '18px',
@@ -398,7 +378,7 @@ function PreencherAvaliacao() {
                                   color: '#2a2a2a',
                                   lineHeight: '1.5'
                                 }}>
-                                  {opcao}
+                                  {opcao.texto_opcao}
                                 </span>
                               </label>
                             ))
@@ -431,6 +411,7 @@ function PreencherAvaliacao() {
             <div className="form-section" style={{ marginTop: '32px', paddingTop: '24px', borderTop: '2px solid #e0e0e0' }}>
               <div className="form-group">
                 <label className="form-label" htmlFor="rating">
+                  <span style={{ marginRight: '8px', color: '#e91e63' }}>*</span>
                   Nota Final (Rating)
                 </label>
                 <select
@@ -448,8 +429,13 @@ function PreencherAvaliacao() {
                   <option value="4">4 - Satisfeito</option>
                   <option value="5">5 - Muito Satisfeito</option>
                 </select>
+                {errors['_rating'] && (
+                  <span className="error-message" style={{ display: 'block', marginTop: '6px' }}>
+                    {errors['_rating']}
+                  </span>
+                )}
                 <p style={{ marginTop: '8px', fontSize: '13px', color: '#666' }}>
-                  Opcional: Avalie a experiência geral desta avaliação.
+                  A avaliação só será concluída quando uma nota final for selecionada.
                 </p>
               </div>
             </div>

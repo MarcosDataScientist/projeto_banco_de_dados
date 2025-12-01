@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { XIcon, QuestionIcon, TagIcon, ToggleIcon, CheckIcon } from '../common/Icons'
+import { XIcon, QuestionIcon, ToggleIcon, CheckIcon } from '../common/Icons'
 import api from '../../services/api'
 
 function EditarPergunta({ isOpen, onClose, onSuccess, perguntaId }) {
   const [formData, setFormData] = useState({
     texto: '',
-    tipo: 'Múltipla Escolha',
     status: 'Ativo',
-    opcoes: ['', '']
+    opcoes: ['', ''] // Modelo 2: apenas múltipla escolha
   })
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
@@ -30,15 +29,34 @@ function EditarPergunta({ isOpen, onClose, onSuccess, perguntaId }) {
       const totalRespostas = perguntaData.total_respostas || perguntaData.total_respostas_vinculadas || 0
       setTemRespostas(totalRespostas > 0)
 
+      // Processar opções - pode vir como array de strings ou array de objetos
+      let opcoesProcessadas = ['', '']
+      if (perguntaData.opcoes) {
+        if (Array.isArray(perguntaData.opcoes)) {
+          // Se for array de objetos (nova estrutura)
+          if (perguntaData.opcoes.length > 0 && typeof perguntaData.opcoes[0] === 'object') {
+            opcoesProcessadas = perguntaData.opcoes.map(op => op.texto_opcao || op)
+          } else {
+            // Se for array de strings
+            opcoesProcessadas = perguntaData.opcoes
+          }
+        } else if (typeof perguntaData.opcoes === 'string') {
+          // Se for string JSON
+          try {
+            const parsed = JSON.parse(perguntaData.opcoes)
+            if (Array.isArray(parsed)) {
+              opcoesProcessadas = parsed.map(op => typeof op === 'object' ? op.texto_opcao || op : op)
+            }
+          } catch (e) {
+            console.error('Erro ao fazer parse das opções:', e)
+          }
+        }
+      }
+
       setFormData({
         texto: perguntaData.texto_questao || perguntaData.texto || '',
-        tipo: perguntaData.tipo_questao || perguntaData.tipo || 'Múltipla Escolha',
         status: perguntaData.status || 'Ativo',
-        opcoes: perguntaData.opcoes 
-          ? (Array.isArray(perguntaData.opcoes) 
-              ? perguntaData.opcoes 
-              : JSON.parse(perguntaData.opcoes))
-          : ['', '']
+        opcoes: opcoesProcessadas.length > 0 ? opcoesProcessadas : ['', '']
       })
     } catch (err) {
       console.error('Erro ao carregar pergunta:', err)
@@ -63,14 +81,7 @@ function EditarPergunta({ isOpen, onClose, onSuccess, perguntaId }) {
       }))
     }
 
-    // Se mudar o tipo, ajustar opções
-    if (name === 'tipo') {
-      if (value !== 'Múltipla Escolha') {
-        setFormData(prev => ({ ...prev, opcoes: [] }))
-      } else if (formData.opcoes.length === 0) {
-        setFormData(prev => ({ ...prev, opcoes: ['', ''] }))
-      }
-    }
+    // Não precisa mais ajustar tipo (Modelo 2: apenas múltipla escolha)
   }
 
   const handleOpcaoChange = (index, value) => {
@@ -118,25 +129,20 @@ function EditarPergunta({ isOpen, onClose, onSuccess, perguntaId }) {
       newErrors.texto = 'Texto deve ter pelo menos 10 caracteres'
     }
 
-    if (!formData.tipo) {
-      newErrors.tipo = 'Tipo da pergunta é obrigatório'
-    }
-
-    if (formData.tipo === 'Múltipla Escolha') {
-      const opcoesVazias = formData.opcoes.filter(opcao => opcao.trim() === '')
+    // Validar opções (Modelo 2: sempre múltipla escolha)
+    const opcoesVazias = formData.opcoes.filter(opcao => opcao.trim() === '')
+    
+    if (opcoesVazias.length > 0) {
+      newErrors.opcoes = 'Todas as opções disponíveis devem ser preenchidas. Não é permitido deixar opções em branco.'
+    } else {
+      if (formData.opcoes.length < 2) {
+        newErrors.opcoes = 'Múltipla escolha deve ter pelo menos 2 opções'
+      }
       
-      if (opcoesVazias.length > 0) {
-        newErrors.opcoes = 'Todas as opções disponíveis devem ser preenchidas. Não é permitido deixar opções em branco.'
-      } else {
-        if (formData.opcoes.length < 2) {
-          newErrors.opcoes = 'Múltipla escolha deve ter pelo menos 2 opções'
-        }
-        
-        const opcoesValidas = formData.opcoes.map(opcao => opcao.trim())
-        const opcoesUnicas = [...new Set(opcoesValidas)]
-        if (opcoesUnicas.length !== opcoesValidas.length) {
-          newErrors.opcoes = 'Não é possível ter opções duplicadas'
-        }
+      const opcoesValidas = formData.opcoes.map(opcao => opcao.trim())
+      const opcoesUnicas = [...new Set(opcoesValidas)]
+      if (opcoesUnicas.length !== opcoesValidas.length) {
+        newErrors.opcoes = 'Não é possível ter opções duplicadas'
       }
     }
 
@@ -161,12 +167,8 @@ function EditarPergunta({ isOpen, onClose, onSuccess, perguntaId }) {
       
       const dadosParaEnvio = {
         texto: formData.texto.trim(),
-        tipo: formData.tipo,
-        status: formData.status
-      }
-
-      if (formData.tipo === 'Múltipla Escolha') {
-        dadosParaEnvio.opcoes = formData.opcoes
+        status: formData.status,
+        opcoes: formData.opcoes
           .map(opcao => opcao.trim())
           .filter(opcao => opcao !== '')
       }
@@ -188,7 +190,6 @@ function EditarPergunta({ isOpen, onClose, onSuccess, perguntaId }) {
   const handleClose = () => {
     setFormData({
       texto: '',
-      tipo: 'Múltipla Escolha',
       status: 'Ativo',
       opcoes: ['', '']
     })
@@ -256,25 +257,6 @@ function EditarPergunta({ isOpen, onClose, onSuccess, perguntaId }) {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="tipo" className="form-label">
-                    <TagIcon /> Tipo da Pergunta *
-                  </label>
-                  <select
-                    id="tipo"
-                    name="tipo"
-                    value={formData.tipo}
-                    onChange={handleInputChange}
-                    className={`form-input ${errors.tipo ? 'error' : ''}`}
-                    required
-                    disabled={temRespostas}
-                  >
-                    <option value="Múltipla Escolha">Múltipla Escolha</option>
-                    <option value="Texto Livre">Texto Livre</option>
-                  </select>
-                  {errors.tipo && <span className="error-message">{errors.tipo}</span>}
-                </div>
-
-                <div className="form-group">
                   <label htmlFor="status" className="form-label">
                     <ToggleIcon /> Status
                   </label>
@@ -292,48 +274,46 @@ function EditarPergunta({ isOpen, onClose, onSuccess, perguntaId }) {
                 </div>
               </div>
 
-              {formData.tipo === 'Múltipla Escolha' && (
-                <div className="form-group">
-                  <label className="form-label">
-                    <CheckIcon /> Opções de Resposta *
-                  </label>
-                  <div className="opcoes-container">
-                    {formData.opcoes.map((opcao, index) => (
-                      <div key={index} className="opcao-item">
-                        <input
-                          type="text"
-                          value={opcao}
-                          onChange={(e) => handleOpcaoChange(index, e.target.value)}
-                          className={`form-input opcao-input ${errors.opcoes && opcao.trim() === '' ? 'error' : ''}`}
-                          placeholder={`Opção ${index + 1}`}
-                          disabled={temRespostas}
-                        />
-                        {formData.opcoes.length > 2 && !temRespostas && (
-                          <button
-                            type="button"
-                            className="btn-remove-opcao"
-                            onClick={() => removerOpcao(index)}
-                            title="Remover opção"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    
-                    {formData.opcoes.length < 6 && !temRespostas && (
-                      <button
-                        type="button"
-                        className="btn-add-opcao"
-                        onClick={adicionarOpcao}
-                      >
-                        + Adicionar Opção
-                      </button>
-                    )}
-                  </div>
-                  {errors.opcoes && <span className="error-message">{errors.opcoes}</span>}
+              <div className="form-group">
+                <label className="form-label">
+                  <CheckIcon /> Opções de Resposta * (Múltipla Escolha)
+                </label>
+                <div className="opcoes-container">
+                  {formData.opcoes.map((opcao, index) => (
+                    <div key={index} className="opcao-item">
+                      <input
+                        type="text"
+                        value={opcao}
+                        onChange={(e) => handleOpcaoChange(index, e.target.value)}
+                        className={`form-input opcao-input ${errors.opcoes && opcao.trim() === '' ? 'error' : ''}`}
+                        placeholder={`Opção ${index + 1}`}
+                        disabled={temRespostas}
+                      />
+                      {formData.opcoes.length > 2 && !temRespostas && (
+                        <button
+                          type="button"
+                          className="btn-remove-opcao"
+                          onClick={() => removerOpcao(index)}
+                          title="Remover opção"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  
+                  {formData.opcoes.length < 6 && !temRespostas && (
+                    <button
+                      type="button"
+                      className="btn-add-opcao"
+                      onClick={adicionarOpcao}
+                    >
+                      + Adicionar Opção
+                    </button>
+                  )}
                 </div>
-              )}
+                {errors.opcoes && <span className="error-message">{errors.opcoes}</span>}
+              </div>
 
               <div className="modal-footer">
                 <button 

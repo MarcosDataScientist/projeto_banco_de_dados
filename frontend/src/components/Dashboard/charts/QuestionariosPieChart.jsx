@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import * as d3 from 'd3'
 
-function SetoresPieChart({ data, onSetorClick }) {
+function QuestionariosPieChart({ data, onQuestionarioClick }) {
   const svgRef = useRef()
   const containerRef = useRef()
   const [dimensions, setDimensions] = useState({ width: 600, height: 400 })
@@ -24,7 +24,12 @@ function SetoresPieChart({ data, onSetorClick }) {
   }, [])
 
   useEffect(() => {
-    if (!data || data.length === 0) return
+    if (!data || data.length === 0) {
+      if (svgRef.current) {
+        d3.select(svgRef.current).selectAll("*").remove()
+      }
+      return
+    }
 
     const { width, height } = dimensions
 
@@ -32,9 +37,10 @@ function SetoresPieChart({ data, onSetorClick }) {
     d3.select(svgRef.current).selectAll("*").remove()
 
     // Configurar dimensões - deixar espaço para legenda embaixo
-    const chartHeight = height - 120 // Espaço para legenda
-    const margin = { top: 20, right: 20, bottom: 20, left: 20 }
-    const radius = Math.min(width - margin.left - margin.right, chartHeight - margin.top - margin.bottom) / 2 - 10
+    const margin = { top: 20, right: 20, bottom: 120, left: 20 } // Espaço embaixo para legenda
+    const chartHeight = height - margin.top - margin.bottom
+    const chartWidth = width - margin.left - margin.right
+    const radius = Math.min(chartWidth, chartHeight) / 2 - 10
     const innerRadius = radius * 0.5 // Donut chart
 
     // Criar SVG
@@ -42,8 +48,12 @@ function SetoresPieChart({ data, onSetorClick }) {
       .attr("width", width)
       .attr("height", height)
 
+    // Centralizar o gráfico no topo
+    const chartCenterX = width / 2
+    const chartCenterY = margin.top + radius + 10
+    
     const g = svg.append("g")
-      .attr("transform", `translate(${width / 2},${chartHeight / 2 + margin.top})`)
+      .attr("transform", `translate(${chartCenterX},${chartCenterY})`)
 
     // Preparar dados para pie chart
     const pie = d3.pie()
@@ -60,7 +70,7 @@ function SetoresPieChart({ data, onSetorClick }) {
 
     // Paleta de cores
     const colorScale = d3.scaleOrdinal()
-      .domain(data.map(d => d.departamento))
+      .domain(data.map(d => d.questionario))
       .range(d3.schemeCategory10)
 
     // Criar arcos
@@ -73,7 +83,7 @@ function SetoresPieChart({ data, onSetorClick }) {
     // Adicionar paths (fatias)
     arcs.append("path")
       .attr("d", arc)
-      .attr("fill", d => colorScale(d.data.departamento))
+      .attr("fill", d => colorScale(d.data.questionario))
       .attr("stroke", "#fff")
       .attr("stroke-width", 2)
       .on("mouseover", function(event, d) {
@@ -103,8 +113,8 @@ function SetoresPieChart({ data, onSetorClick }) {
           .style("opacity", 1)
         
         tooltip.html(`
-          <strong>${d.data.departamento}</strong><br/>
-          Total: ${d.data.total || 0}<br/>
+          <strong>${d.data.questionario}</strong><br/>
+          Total: ${d.data.total || 0} avaliações<br/>
           ${percentual}% do total
         `)
           .style("left", (event.pageX + 10) + "px")
@@ -120,21 +130,23 @@ function SetoresPieChart({ data, onSetorClick }) {
         d3.selectAll(".tooltip").remove()
       })
       .on("click", function(event, d) {
-        if (onSetorClick) {
-          onSetorClick(d.data.departamento)
+        if (onQuestionarioClick) {
+          onQuestionarioClick(d.data.id)
         }
       })
-      .style("cursor", onSetorClick ? "pointer" : "default")
+      .style("cursor", onQuestionarioClick ? "pointer" : "default")
 
-    // Labels dentro das fatias foram removidas para deixar o gráfico mais limpo.
-
-    // Adicionar legenda embaixo do gráfico
-    const legendY = chartHeight + margin.top + 20
-    const legendItemWidth = width / Math.min(data.length, 4) // Máximo 4 itens por linha
-    const itemsPerRow = Math.min(data.length, 4)
+    // Adicionar legenda vertical abaixo do gráfico (centralizada)
+    const legendY = chartCenterY + radius + 30 // Posição Y abaixo do gráfico
+    const legendItemHeight = 25 // Altura de cada item
+    const legendSpacing = 5 // Espaçamento entre itens
+    
+    // Calcular largura total da legenda para centralizar
+    const legendWidth = 250 // Largura fixa para a legenda
+    const legendX = (width - legendWidth) / 2 // Centralizar a legenda
     
     const legend = svg.append("g")
-      .attr("transform", `translate(${margin.left}, ${legendY})`)
+      .attr("transform", `translate(${legendX}, ${legendY})`)
 
     const legendItems = legend.selectAll(".legend-item")
       .data(data)
@@ -142,37 +154,36 @@ function SetoresPieChart({ data, onSetorClick }) {
       .append("g")
       .attr("class", "legend-item")
       .attr("transform", (d, i) => {
-        const row = Math.floor(i / itemsPerRow)
-        const col = i % itemsPerRow
-        return `translate(${col * legendItemWidth}, ${row * 25})`
+        return `translate(0, ${i * (legendItemHeight + legendSpacing)})`
       })
       .style("cursor", "pointer")
       .on("click", function(event, d) {
-        if (onSetorClick) {
-          onSetorClick(d.departamento)
+        if (onQuestionarioClick) {
+          onQuestionarioClick(d.id)
         }
       })
 
     legendItems.append("rect")
       .attr("width", 15)
       .attr("height", 15)
-      .attr("fill", d => colorScale(d.departamento))
+      .attr("fill", d => colorScale(d.questionario))
       .attr("rx", 2)
+      .attr("y", 2)
 
+    // Calcular percentual para cada item
+    const total = d3.sum(data.map(d => d.total || 0))
+    
     legendItems.append("text")
       .attr("x", 20)
       .attr("y", 12)
-      .attr("font-size", "11px")
+      .attr("font-size", "12px")
       .attr("fill", "#333")
       .text(d => {
-        const maxLength = Math.floor(legendItemWidth / 8) // Ajustar comprimento baseado na largura disponível
-        const nome = d.departamento.length > maxLength 
-          ? d.departamento.substring(0, maxLength) + '...' 
-          : d.departamento
-        return `${nome} (${d.total || 0})`
+        const percentual = total > 0 ? ((d.total || 0) / total * 100).toFixed(1) : '0.0'
+        return `${d.questionario} (${d.total || 0} - ${percentual}%)`
       })
 
-  }, [data, dimensions, onSetorClick])
+  }, [data, dimensions, onQuestionarioClick])
 
   if (!data || data.length === 0) {
     return (
@@ -184,12 +195,17 @@ function SetoresPieChart({ data, onSetorClick }) {
 
   return (
     <div className="chart-container" ref={containerRef} style={{ width: '100%', height: '100%', minHeight: '450px' }}>
-      <div style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+      {onQuestionarioClick && (
+        <div style={{ marginBottom: '10px', fontSize: '12px', fontWeight: 'normal', color: '#666' }}>
+          (Clique em um questionário para ver detalhes)
+        </div>
+      )}
+      <div style={{ width: '100%', height: 'calc(100% - 60px)', overflow: 'visible' }}>
         <svg ref={svgRef} style={{ width: '100%', height: '100%', overflow: 'visible' }}></svg>
       </div>
     </div>
   )
 }
 
-export default SetoresPieChart
+export default QuestionariosPieChart
 

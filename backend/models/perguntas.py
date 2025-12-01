@@ -1,6 +1,6 @@
 """
 Módulo de queries SQL para Perguntas/Questões
-Adaptado para o novo schema: Questao, Questao_Multipla_Escolha, Questao_Texto_Livre
+Adaptado para o Modelo 2: Apenas múltipla escolha, usando tabela Opcao
 """
 from backend.config.database import execute_query
 
@@ -13,13 +13,12 @@ class PerguntasModel:
         Lista todas as questões com filtros opcionais
         
         Args:
-            filtro_tipo: Tipo da questão para filtrar (Múltipla Escolha, Texto Livre)
+            filtro_tipo: Não usado mais (mantido para compatibilidade)
             filtro_status: Status para filtrar (Ativo, Inativo)
         """
         query = """
             SELECT 
                 q.cod_questao,
-                q.tipo_questao,
                 q.texto_questao,
                 q.status
             FROM Questao q
@@ -28,13 +27,16 @@ class PerguntasModel:
         
         params = []
         
-        if filtro_tipo is not None:
-            query += " AND q.tipo_questao = %s"
-            params.append(filtro_tipo)
-        
         if filtro_status is not None:
-            query += " AND q.status = %s"
-            params.append(filtro_status)
+            # Compatibilidade: aceitar tanto 'Ativo'/'Inativo' quanto 'Ativa'/'Inativa'
+            if filtro_status in ('Ativo', 'Inativo'):
+                if filtro_status == 'Ativo':
+                    query += " AND UPPER(q.status) IN ('ATIVO', 'ATIVA')"
+                else:
+                    query += " AND UPPER(q.status) IN ('INATIVO', 'INATIVA')"
+            else:
+                query += " AND q.status = %s"
+                params.append(filtro_status)
         
         query += " ORDER BY q.cod_questao"
         
@@ -57,23 +59,27 @@ class PerguntasModel:
             where_conditions = []
             params = []
             
-            if filtro_tipo:
-                where_conditions.append("q.tipo_questao = %s")
-                params.append(filtro_tipo)
+            # filtro_tipo não é mais usado (todas são múltipla escolha)
             
             if filtro_status:
-                where_conditions.append("q.status = %s")
-                params.append(filtro_status)
+                # Compatibilidade: aceitar tanto 'Ativo'/'Inativo' quanto 'Ativa'/'Inativa'
+                if filtro_status in ('Ativo', 'Inativo'):
+                    if filtro_status == 'Ativo':
+                        where_conditions.append("UPPER(q.status) IN ('ATIVO', 'ATIVA')")
+                    else:
+                        where_conditions.append("UPPER(q.status) IN ('INATIVO', 'INATIVA')")
+                else:
+                    where_conditions.append("q.status = %s")
+                    params.append(filtro_status)
             
             if filtro_busca:
-                where_conditions.append("(LOWER(q.texto_questao) LIKE %s OR LOWER(q.tipo_questao) LIKE %s)")
+                where_conditions.append("LOWER(q.texto_questao) LIKE %s")
                 busca_pattern = f"%{filtro_busca.lower()}%"
-                params.append(busca_pattern)
                 params.append(busca_pattern)
             
             where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
             
-            # Contar total de registros (sem GROUP BY para contar corretamente)
+            # Contar total de registros
             count_query = f"SELECT COUNT(DISTINCT q.cod_questao) as total FROM Questao q {where_clause}"
             cursor.execute(count_query, tuple(params) if params else None)
             total = cursor.fetchone()['total']
@@ -83,14 +89,13 @@ class PerguntasModel:
             data_query = f"""
                 SELECT 
                     q.cod_questao,
-                    q.tipo_questao,
                     q.texto_questao,
                     q.status,
                     COALESCE(COUNT(DISTINCT r.cod_resposta), 0) as total_respostas
                 FROM Questao q
                 LEFT JOIN Resposta r ON q.cod_questao = r.questao_cod
                 {where_clause}
-                GROUP BY q.cod_questao, q.tipo_questao, q.texto_questao, q.status
+                GROUP BY q.cod_questao, q.texto_questao, q.status
                 ORDER BY q.cod_questao
                 LIMIT %s OFFSET %s
             """
@@ -99,11 +104,10 @@ class PerguntasModel:
             cursor.execute(data_query, tuple(params))
             perguntas = [dict(row) for row in cursor.fetchall()]
             
-            # Para cada pergunta, buscar opções se for múltipla escolha
+            # Para cada pergunta, buscar opções (todas são múltipla escolha agora)
             for pergunta in perguntas:
-                if pergunta['tipo_questao'] == 'Múltipla Escolha':
-                    opcoes = PerguntasModel.buscar_opcoes_resposta(pergunta['cod_questao'])
-                    pergunta['opcoes'] = opcoes
+                opcoes = PerguntasModel.buscar_opcoes_resposta(pergunta['cod_questao'])
+                pergunta['opcoes'] = opcoes
             
             return perguntas, total
             
@@ -132,14 +136,13 @@ class PerguntasModel:
             query = """
                 SELECT 
                     q.cod_questao,
-                    q.tipo_questao,
                     q.texto_questao,
                     q.status,
                     COALESCE(COUNT(DISTINCT r.cod_resposta), 0) as total_respostas
                 FROM Questao q
                 LEFT JOIN Resposta r ON q.cod_questao = r.questao_cod
                 WHERE q.cod_questao = %s
-                GROUP BY q.cod_questao, q.tipo_questao, q.texto_questao, q.status
+                GROUP BY q.cod_questao, q.texto_questao, q.status
             """
             
             cursor.execute(query, (questao_id,))
@@ -148,10 +151,9 @@ class PerguntasModel:
             if resultado:
                 resultado = dict(resultado)
                 
-                # Se for múltipla escolha, buscar opções
-                if resultado['tipo_questao'] == 'Múltipla Escolha':
-                    opcoes = PerguntasModel.buscar_opcoes_resposta(questao_id)
-                    resultado['opcoes'] = opcoes
+                # Buscar opções (todas são múltipla escolha)
+                opcoes = PerguntasModel.buscar_opcoes_resposta(questao_id)
+                resultado['opcoes'] = opcoes
             
             return resultado
             
@@ -166,7 +168,7 @@ class PerguntasModel:
     
     @staticmethod
     def buscar_opcoes_resposta(questao_id):
-        """Busca as opções de resposta de uma questão de múltipla escolha"""
+        """Busca as opções de resposta de uma questão (tabela Opcao)"""
         from backend.config.database import get_db_connection, Database
         from psycopg2.extras import RealDictCursor
         
@@ -179,18 +181,27 @@ class PerguntasModel:
             
             query = """
                 SELECT 
-                    qme.opcoes
-                FROM Questao_Multipla_Escolha qme
-                WHERE qme.questao_cod = %s
+                    cod_opcao,
+                    texto_opcao,
+                    ordem
+                FROM Opcao
+                WHERE questao_cod = %s
+                ORDER BY ordem, cod_opcao
             """
             
             cursor.execute(query, (questao_id,))
-            resultado = cursor.fetchone()
+            resultados = cursor.fetchall()
             
-            if resultado and resultado.get('opcoes'):
-                # opcoes está em formato JSONB
-                return resultado['opcoes']
-            return []
+            # Retornar lista de opções com seus dados
+            opcoes = []
+            for row in resultados:
+                opcoes.append({
+                    'cod_opcao': row['cod_opcao'],
+                    'texto_opcao': row['texto_opcao'],
+                    'ordem': row['ordem']
+                })
+            
+            return opcoes
             
         except Exception as error:
             print(f"[ERRO] Erro ao buscar opções: {error}")
@@ -202,8 +213,8 @@ class PerguntasModel:
                 Database.return_connection(connection)
     
     @staticmethod
-    def criar(texto_questao, tipo_questao, status='Ativo', opcoes=None):
-        """Cria uma nova questão"""
+    def criar(texto_questao, status='Ativo', opcoes=None):
+        """Cria uma nova questão de múltipla escolha com suas opções"""
         from backend.config.database import get_db_connection, Database
         from psycopg2.extras import RealDictCursor
         
@@ -216,31 +227,51 @@ class PerguntasModel:
             
             # Criar a questão base
             query = """
-                INSERT INTO Questao (tipo_questao, texto_questao, status)
-                VALUES (%s, %s, %s)
-                RETURNING cod_questao, tipo_questao, texto_questao, status
+                INSERT INTO Questao (texto_questao, status)
+                VALUES (%s, %s)
+                RETURNING cod_questao, texto_questao, status
             """
             
-            cursor.execute(query, (tipo_questao, texto_questao, status))
-            connection.commit()
-            
+            cursor.execute(query, (texto_questao, status))
             resultado = cursor.fetchone()
             
-            if resultado and opcoes and tipo_questao == 'Múltipla Escolha':
-                # Inserir opções para múltipla escolha
-                cod_questao = resultado['cod_questao']
-                PerguntasModel.criar_opcoes_multipla_escolha(cod_questao, opcoes)
-            elif resultado and tipo_questao == 'Texto Livre':
-                # Inserir na tabela de texto livre
-                cod_questao = resultado['cod_questao']
-                PerguntasModel.criar_questao_texto_livre(cod_questao)
+            if not resultado:
+                raise Exception("Não foi possível criar a questão")
             
-            return [dict(resultado)] if resultado else []
+            cod_questao = resultado['cod_questao']
+            
+            # Inserir opções na tabela Opcao
+            if opcoes:
+                if isinstance(opcoes, list):
+                    # Se for lista de strings, criar opções
+                    for ordem, texto_opcao in enumerate(opcoes, start=1):
+                        query_opcao = """
+                            INSERT INTO Opcao (texto_opcao, ordem, questao_cod)
+                            VALUES (%s, %s, %s)
+                        """
+                        cursor.execute(query_opcao, (texto_opcao, ordem, cod_questao))
+                elif isinstance(opcoes, dict) and 'opcoes' in opcoes:
+                    # Se for dict com chave 'opcoes'
+                    for ordem, opcao in enumerate(opcoes['opcoes'], start=1):
+                        texto = opcao if isinstance(opcao, str) else opcao.get('texto_opcao', str(opcao))
+                        ordem_val = opcao.get('ordem', ordem) if isinstance(opcao, dict) else ordem
+                        query_opcao = """
+                            INSERT INTO Opcao (texto_opcao, ordem, questao_cod)
+                            VALUES (%s, %s, %s)
+                        """
+                        cursor.execute(query_opcao, (texto, ordem_val, cod_questao))
+            
+            # Fazer commit de tudo junto
+            connection.commit()
+            
+            return [dict(resultado)]
             
         except Exception as error:
             if connection:
                 connection.rollback()
             print(f"[ERRO] Erro ao criar pergunta: {error}")
+            import traceback
+            traceback.print_exc()
             raise
         finally:
             if cursor:
@@ -249,39 +280,41 @@ class PerguntasModel:
                 Database.return_connection(connection)
     
     @staticmethod
-    def criar_opcoes_multipla_escolha(questao_cod, opcoes):
-        """Cria registro de questão de múltipla escolha com opções em JSONB"""
-        import json
+    def criar_opcoes(questao_cod, opcoes):
+        """Cria opções para uma questão na tabela Opcao"""
+        from backend.config.database import get_db_connection, Database
         
-        # Se opcoes é uma lista, converter para JSON
-        if isinstance(opcoes, list):
-            opcoes_json = json.dumps(opcoes)
-        else:
-            opcoes_json = opcoes
+        connection = None
+        cursor = None
         
-        query = """
-            INSERT INTO Questao_Multipla_Escolha (questao_cod, opcoes)
-            VALUES (%s, %s::jsonb)
-            RETURNING questao_cod
-        """
-        
-        # Usar fetch=False para fazer commit da inserção
-        return execute_query(query, (questao_cod, opcoes_json), fetch=False)
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor()
+            
+            if isinstance(opcoes, list):
+                for ordem, texto_opcao in enumerate(opcoes, start=1):
+                    query = """
+                        INSERT INTO Opcao (texto_opcao, ordem, questao_cod)
+                        VALUES (%s, %s, %s)
+                    """
+                    cursor.execute(query, (texto_opcao, ordem, questao_cod))
+            
+            connection.commit()
+            return True
+            
+        except Exception as error:
+            if connection:
+                connection.rollback()
+            print(f"[ERRO] Erro ao criar opções: {error}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                Database.return_connection(connection)
     
     @staticmethod
-    def criar_questao_texto_livre(questao_cod):
-        """Cria registro de questão de texto livre"""
-        query = """
-            INSERT INTO Questao_Texto_Livre (questao_cod)
-            VALUES (%s)
-            RETURNING questao_cod
-        """
-        
-        # Usar fetch=False para fazer commit da inserção
-        return execute_query(query, (questao_cod,), fetch=False)
-    
-    @staticmethod
-    def atualizar(questao_id, texto_questao=None, tipo_questao=None, status=None):
+    def atualizar(questao_id, texto_questao=None, status=None):
         """Atualiza uma questão"""
         from backend.config.database import get_db_connection, Database
         from psycopg2.extras import RealDictCursor
@@ -300,10 +333,6 @@ class PerguntasModel:
                 campos.append("texto_questao = %s")
                 params.append(texto_questao)
             
-            if tipo_questao is not None:
-                campos.append("tipo_questao = %s")
-                params.append(tipo_questao)
-            
             if status is not None:
                 campos.append("status = %s")
                 params.append(status)
@@ -317,7 +346,7 @@ class PerguntasModel:
                 UPDATE Questao 
                 SET {', '.join(campos)}
                 WHERE cod_questao = %s
-                RETURNING cod_questao, tipo_questao, texto_questao, status
+                RETURNING cod_questao, texto_questao, status
             """
             
             cursor.execute(query, tuple(params))
@@ -338,53 +367,31 @@ class PerguntasModel:
                 Database.return_connection(connection)
     
     @staticmethod
-    def atualizar_opcoes_multipla_escolha(questao_cod, opcoes):
-        """Atualiza as opções de uma questão de múltipla escolha"""
+    def atualizar_opcoes(questao_cod, opcoes):
+        """Atualiza as opções de uma questão (deleta as antigas e cria novas)"""
         from backend.config.database import get_db_connection, Database
-        from psycopg2.extras import RealDictCursor
-        import json
         
         connection = None
         cursor = None
         
         try:
             connection = get_db_connection()
-            cursor = connection.cursor(cursor_factory=RealDictCursor)
+            cursor = connection.cursor()
             
+            # Deletar opções antigas
+            cursor.execute("DELETE FROM Opcao WHERE questao_cod = %s", (questao_cod,))
+            
+            # Inserir novas opções
             if isinstance(opcoes, list):
-                opcoes_json = json.dumps(opcoes)
-            else:
-                opcoes_json = opcoes
-            
-            # Primeiro, verificar se existe registro
-            check_query = """
-                SELECT questao_cod FROM Questao_Multipla_Escolha WHERE questao_cod = %s
-            """
-            cursor.execute(check_query, (questao_cod,))
-            existe = cursor.fetchone()
-            
-            if existe:
-                # Atualizar se existe
-                update_query = """
-                    UPDATE Questao_Multipla_Escolha
-                    SET opcoes = %s::jsonb
-                    WHERE questao_cod = %s
-                    RETURNING questao_cod
-                """
-                cursor.execute(update_query, (opcoes_json, questao_cod))
-            else:
-                # Criar se não existe
-                insert_query = """
-                    INSERT INTO Questao_Multipla_Escolha (questao_cod, opcoes)
-                    VALUES (%s, %s::jsonb)
-                    RETURNING questao_cod
-                """
-                cursor.execute(insert_query, (questao_cod, opcoes_json))
+                for ordem, texto_opcao in enumerate(opcoes, start=1):
+                    query = """
+                        INSERT INTO Opcao (texto_opcao, ordem, questao_cod)
+                        VALUES (%s, %s, %s)
+                    """
+                    cursor.execute(query, (texto_opcao, ordem, questao_cod))
             
             connection.commit()
-            
-            resultado = cursor.fetchone()
-            return [dict(resultado)] if resultado else []
+            return True
             
         except Exception as error:
             if connection:
@@ -469,14 +476,12 @@ class PerguntasModel:
     
     @staticmethod
     def contar_por_tipo():
-        """Conta questões agrupadas por tipo"""
+        """Conta questões agrupadas por tipo (todas são múltipla escolha agora)"""
         query = """
             SELECT 
-                tipo_questao,
+                'Múltipla Escolha' AS tipo_questao,
                 COUNT(*) AS total
             FROM Questao
-            GROUP BY tipo_questao
-            ORDER BY total DESC
         """
         
         return execute_query(query)

@@ -11,7 +11,7 @@ function Perguntas() {
   const [perguntas, setPerguntas] = useState([])
   const [categorias, setCategorias] = useState([])
   const [filtroCategoria, setFiltroCategoria] = useState('')
-  const [filtroTipo, setFiltroTipo] = useState('')
+  // Removido filtroTipo - Modelo 2: apenas múltipla escolha
   const [filtroStatus, setFiltroStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -85,20 +85,19 @@ function Perguntas() {
     }
     carregarDados()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page, filtroTipo, filtroStatus])
+  }, [pagination.page, filtroStatus])
 
   const carregarDados = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      // Preparar parâmetros de filtro
+      // Preparar parâmetros de filtro (Modelo 2: sem filtro de tipo)
       const statusAtivo = filtroStatus === 'Ativo' ? true : filtroStatus === 'Inativo' ? false : null
-      const tipoFiltro = filtroTipo || null
       const buscaTermo = searchTerm.trim() || null
       
       const [perguntasResponse, categoriasData] = await Promise.all([
-        api.getPerguntas(null, statusAtivo, pagination.page, pagination.per_page, buscaTermo, tipoFiltro),
+        api.getPerguntas(null, statusAtivo, pagination.page, pagination.per_page, buscaTermo, null),
         api.getCategorias()
       ])
       
@@ -162,17 +161,44 @@ function Perguntas() {
     showToast('success', 'Pergunta atualizada!', 'A pergunta foi atualizada com sucesso.')
   }
 
+  const handleToggleStatus = async (pergunta) => {
+    if (!pergunta || !pergunta.cod_questao) return
+
+    // ATIVA (ligado) / INATIVA (desligado)
+    const isAtiva = pergunta.status === 'Ativo' || pergunta.status === 'Ativa'
+    const novoStatus = isAtiva ? 'Inativa' : 'Ativa'
+
+    try {
+      await api.atualizarPergunta(pergunta.cod_questao, { status: novoStatus })
+
+      // Atualizar otimisticamente na lista
+      setPerguntas(prev =>
+        prev.map(p =>
+          p.cod_questao === pergunta.cod_questao ? { ...p, status: novoStatus } : p
+        )
+      )
+
+      showToast(
+        'success',
+        'Status atualizado',
+        `A pergunta foi marcada como ${novoStatus}.`
+      )
+    } catch (err) {
+      console.error('Erro ao alternar status da pergunta:', err)
+      const msg =
+        err.response?.data?.error ||
+        err.message ||
+        'Não foi possível atualizar o status da pergunta.'
+      showToast('error', 'Erro ao atualizar status', msg)
+    }
+  }
+
   // Perguntas já vêm filtradas do backend
   const filteredPerguntas = perguntas
 
   const getTipoBadgeColor = (tipo) => {
-    switch (tipo) {
-      case 'Escala': return 'badge-escala'
-      case 'Múltipla Escolha': return 'badge-multipla'
-      case 'Sim/Não': return 'badge-simnao'
-      case 'Texto Livre': return 'badge-texto'
-      default: return 'badge-default'
-    }
+    // Modelo 2: todas são múltipla escolha
+    return 'badge-multipla'
   }
 
   const showToast = (type, title, message) => {
@@ -275,9 +301,12 @@ function Perguntas() {
   }
 
   const totalPerguntas = perguntas.length
-  const ativas = perguntas.filter(p => p.status === 'Ativo').length
-  const totalCategorias = new Set(perguntas.map(p => p.categoria)).size
-  const tiposUnicos = new Set(perguntas.map(p => p.tipo_questao))
+  // Considerar tanto 'Ativo'/'Ativa' quanto variações de maiúsculas/minúsculas
+  const ativas = perguntas.filter(p => {
+    if (!p.status) return false
+    const s = String(p.status).trim().toUpperCase()
+    return s === 'ATIVO' || s === 'ATIVA'
+  }).length
 
   return (
     <div className="page-container">
@@ -298,14 +327,6 @@ function Perguntas() {
               <div className="stat-row">
                 <span className="stat-label">Perguntas Ativas</span>
                 <span className="stat-number">{ativas}</span>
-              </div>
-              <div className="stat-row">
-                <span className="stat-label">Categorias</span>
-                <span className="stat-number">{totalCategorias}</span>
-              </div>
-              <div className="stat-row">
-                <span className="stat-label">Tipos de Questão</span>
-                <span className="stat-number">{tiposUnicos.size}</span>
               </div>
             </div>
           </div>
@@ -334,16 +355,6 @@ function Perguntas() {
           <div className="filter-section-row">
             <span className="filter-label">Filtrar por:</span>
             <select 
-              className="filter-select" 
-              value={filtroTipo}
-              onChange={(e) => setFiltroTipo(e.target.value)}
-            >
-              <option value="">Todos os Tipos</option>
-              {Array.from(tiposUnicos).map(tipo => (
-                <option key={tipo} value={tipo}>{tipo}</option>
-              ))}
-            </select>
-            <select 
               className="filter-select"
               value={filtroStatus}
               onChange={(e) => setFiltroStatus(e.target.value)}
@@ -368,12 +379,18 @@ function Perguntas() {
                     <div className="item-header">
                       <h4 className="item-title">{pergunta.texto_questao}</h4>
                       <div className="item-badges">
-                        <span className={`badge ${getTipoBadgeColor(pergunta.tipo_questao)}`}>
-                          {pergunta.tipo_questao}
-                        </span>
-                        <span className={`badge ${pergunta.status === 'Ativo' ? 'badge-ativo' : 'badge-inativo'}`}>
-                          {pergunta.status}
-                        </span>
+                        <label
+                          className="theme-toggle-switch question-toggle-switch"
+                          title="Clique para alternar entre ATIVA e INATIVA"
+                          style={{ transform: 'scale(0.9)' }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={pergunta.status === 'Ativo' || pergunta.status === 'Ativa'}
+                            onChange={() => handleToggleStatus(pergunta)}
+                          />
+                          <span className="theme-toggle-slider"></span>
+                        </label>
                       </div>
                     </div>
                     <div className="item-meta">
@@ -518,7 +535,7 @@ function Perguntas() {
                   <br /><br />
                   <strong>Pergunta:</strong> {getPerguntaText()}
                   <br />
-                  <strong>Tipo:</strong> {perguntaToDelete.tipo_questao || perguntaToDelete.tipo || 'N/A'}
+                  <strong>Tipo:</strong> Múltipla Escolha
                   <br />
                   <strong>Status:</strong> {perguntaToDelete.status || 'N/A'}
                   {(perguntaToDelete.total_respostas || 0) > 0 && (
@@ -581,8 +598,8 @@ function Perguntas() {
                         </div>
                         <div className="detail-item">
                           <label>Tipo de Pergunta</label>
-                          <span className={`badge ${getTipoBadgeColor(perguntaToView.tipo_questao)}`}>
-                            {perguntaToView.tipo_questao}
+                          <span className={`badge ${getTipoBadgeColor('Múltipla Escolha')}`}>
+                            Múltipla Escolha
                           </span>
                         </div>
                       </div>
@@ -599,18 +616,22 @@ function Perguntas() {
                     </div>
 
                     {/* Opções de Resposta */}
-                    {perguntaToView.tipo_questao === 'Múltipla Escolha' && perguntaToView.opcoes && perguntaToView.opcoes.length > 0 && (
+                    {perguntaToView.opcoes && perguntaToView.opcoes.length > 0 && (
                       <div className="detail-section opcoes-resposta">
                         <h3>
                           <QuestionIcon /> Opções de Resposta
                         </h3>
                         <div className="opcoes-list-view">
-                          {perguntaToView.opcoes.map((opcao, index) => (
-                            <div key={index} className="opcao-item-view">
-                              <div className="opcao-number-view">{index + 1}</div>
-                              <div className="opcao-text-view">{opcao}</div>
-                            </div>
-                          ))}
+                          {perguntaToView.opcoes.map((opcao, index) => {
+                            // Suportar tanto array de strings quanto array de objetos
+                            const textoOpcao = typeof opcao === 'object' ? (opcao.texto_opcao || opcao) : opcao
+                            return (
+                              <div key={index} className="opcao-item-view">
+                                <div className="opcao-number-view">{index + 1}</div>
+                                <div className="opcao-text-view">{textoOpcao}</div>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
                     )}

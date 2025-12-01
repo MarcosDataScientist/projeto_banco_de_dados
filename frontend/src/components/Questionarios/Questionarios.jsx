@@ -133,6 +133,37 @@ function Formularios() {
     setQuestionarioToDelete(null)
   }
 
+  const handleToggleStatus = async (formulario) => {
+    if (!formulario || !formulario.id) return
+
+    // Ativo (ligado) / Inativo (desligado)
+    const isAtivo = formulario.status === 'Ativo'
+    const novoStatus = isAtivo ? 'Inativo' : 'Ativo'
+
+    try {
+      await api.atualizarQuestionario(formulario.id, { status: novoStatus })
+
+      // Atualizar lista localmente
+      setFormularios(prev =>
+        prev.map(f =>
+          f.id === formulario.id ? { ...f, status: novoStatus } : f
+        )
+      )
+
+      showToast(
+        'success',
+        'Status atualizado',
+        `O questionário foi marcado como ${novoStatus}.`
+      )
+    } catch (err) {
+      console.error('Erro ao alternar status do questionário:', err)
+      const msg =
+        err.response?.data?.error ||
+        err.message ||
+        'Não foi possível atualizar o status do questionário.'
+      showToast('error', 'Erro ao atualizar status', msg)
+    }
+  }
 
   const showToast = (type, title, message) => {
     setToast({
@@ -240,7 +271,9 @@ function Formularios() {
               </div>
               <div className="stat-row">
                 <span className="stat-label">Questionários Ativos</span>
-                <span className="stat-number">{formularios.filter(f => f.status === 'Ativo').length}</span>
+                <span className="stat-number">
+                  {formularios.filter(f => String(f.status).trim().toUpperCase() === 'ATIVO').length}
+                </span>
               </div>
               <div className="stat-row">
                 <span className="stat-label">Total de Aplicações</span>
@@ -286,9 +319,18 @@ function Formularios() {
                   <div className="item-header">
                     <h4 className="item-title">{formulario.titulo}</h4>
                     <div className="item-badges">
-                      <span className={`badge ${getStatusBadgeColor(formulario.status)}`}>
-                        {formulario.status}
-                      </span>
+                      <label
+                        className="theme-toggle-switch question-toggle-switch"
+                        title="Clique para alternar entre ATIVO e INATIVO"
+                        style={{ transform: 'scale(0.9)', marginRight: '4px' }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formulario.status === 'Ativo'}
+                          onChange={() => handleToggleStatus(formulario)}
+                        />
+                        <span className="theme-toggle-slider"></span>
+                      </label>
                       {formulario.tipo && (
                         <span className="badge badge-default">
                           {formulario.tipo}

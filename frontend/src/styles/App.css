@@ -208,6 +208,27 @@ body {
   transform: translateX(0);
 }
 
+/* Toggle específico para perguntas (ATIVA / INATIVA) */
+.question-toggle-switch .theme-toggle-slider {
+  background-color: #fee2e2; /* vermelho claro (INATIVA) */
+  justify-content: flex-start;
+}
+
+.question-toggle-switch .theme-toggle-slider::before {
+  left: 2px;
+  right: auto;
+}
+
+.question-toggle-switch input:checked + .theme-toggle-slider {
+  background-color: #4ade80; /* verde (ATIVA) */
+  justify-content: flex-end;
+}
+
+.question-toggle-switch input:checked + .theme-toggle-slider::before {
+  right: 2px;
+  left: auto;
+}
+
 .navbar-user-container {
   position: relative;
 }
@@ -4622,6 +4643,30 @@ textarea.form-input {
   flex-direction: column;
   overflow: visible;
   min-height: 450px;
+}
+
+/* Scrollbar customizado para áreas de gráfico/lista no dashboard */
+.custom-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #e91e63 #f1f5f9;
+}
+
+.custom-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: #e91e63;
+  border-radius: 4px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: #c2185b;
 }
 
 .dashboard-card:hover {

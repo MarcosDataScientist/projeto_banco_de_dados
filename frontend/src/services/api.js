@@ -73,6 +73,20 @@ class ApiService {
     return this.request('/dashboard/avaliacoes-setor')
   }
 
+  async getAvaliacoesPorQuestionario() {
+    return this.request('/dashboard/avaliacoes-por-questionario')
+  }
+
+  async getPontosPorData(dataInicial = null, dataFinal = null, limiteDias = null) {
+    const params = new URLSearchParams()
+    if (dataInicial) params.append('data_inicial', dataInicial)
+    if (dataFinal) params.append('data_final', dataFinal)
+    if (limiteDias) params.append('limite_dias', limiteDias)
+    
+    const queryString = params.toString()
+    return this.request(`/dashboard/pontos-por-data${queryString ? '?' + queryString : ''}`)
+  }
+
   async getAvaliadoresPorSetor() {
     return this.request('/dashboard/avaliadores-por-setor')
   }
@@ -270,6 +284,18 @@ class ApiService {
 
   async getRespostasAvaliacao(avaliacaoId) {
     return this.request(`/avaliacoes/${avaliacaoId}`)
+  }
+
+  async getGraficoRespostasAvaliacao(avaliacaoId) {
+    return this.request(`/avaliacoes/${avaliacaoId}/grafico-respostas`)
+  }
+
+  async getGraficoRespostasQuestionario(questionarioId) {
+    return this.request(`/questionarios/${questionarioId}/grafico-respostas`)
+  }
+
+  async getRespostasQuestao(questaoId) {
+    return this.request(`/questoes/${questaoId}/respostas`)
   }
 
   async deletarAvaliacao(id) {

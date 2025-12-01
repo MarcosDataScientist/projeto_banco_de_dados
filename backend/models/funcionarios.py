@@ -319,11 +319,15 @@ class FuncionariosModel:
                 SELECT 
                     COUNT(*) AS total_geral,
                     COUNT(*) FILTER (WHERE TRIM(UPPER(status)) = 'ATIVO') AS total_ativo,
-                    COUNT(*) FILTER (WHERE TRIM(UPPER(status)) = 'INATIVO') AS total_inativo,
+                    -- Considerar funcionários DESLIGADOS como inativos
+                    COUNT(*) FILTER (
+                        WHERE TRIM(UPPER(status)) = 'INATIVO'
+                           OR TRIM(UPPER(status)) = 'DESLIGADO'
+                    ) AS total_inativo,
                     COUNT(*) FILTER (
                         WHERE TRIM(UPPER(status)) LIKE '%PROCESSO%' 
-                        OR TRIM(UPPER(status)) LIKE '%SAÍDA%' 
-                        OR TRIM(UPPER(status)) LIKE '%SAIDA%'
+                           OR TRIM(UPPER(status)) LIKE '%SAÍDA%' 
+                           OR TRIM(UPPER(status)) LIKE '%SAIDA%'
                     ) AS total_processo
                 FROM Funcionario
             """

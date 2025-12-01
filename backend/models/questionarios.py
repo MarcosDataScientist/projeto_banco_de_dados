@@ -17,7 +17,7 @@ class QuestionariosModel:
         SELECT 
             q.cod_questionario as id,
             q.nome as titulo,
-            q.tipo,
+            q.descricao,
             q.status,
             c.nome as classificacao,
             COUNT(DISTINCT qq.questao_cod) as total_perguntas,
@@ -26,7 +26,7 @@ class QuestionariosModel:
         LEFT JOIN Classificacao c ON q.classificacao_cod = c.cod_classificacao
         LEFT JOIN Questionario_Questao qq ON q.cod_questionario = qq.questionario_cod
         LEFT JOIN Avaliacao a ON q.cod_questionario = a.questionario_cod
-        GROUP BY q.cod_questionario, q.nome, q.tipo, q.status, c.nome
+        GROUP BY q.cod_questionario, q.nome, q.descricao, q.status, c.nome
         ORDER BY q.cod_questionario DESC
         """
         
@@ -56,7 +56,7 @@ class QuestionariosModel:
         SELECT 
             q.cod_questionario as id,
             q.nome as titulo,
-            q.tipo,
+            q.descricao,
             q.status,
             c.nome as classificacao,
             c.cod_classificacao as classificacao_id,
@@ -65,7 +65,7 @@ class QuestionariosModel:
         LEFT JOIN Classificacao c ON q.classificacao_cod = c.cod_classificacao
         LEFT JOIN Avaliacao a ON q.cod_questionario = a.questionario_cod
         WHERE q.cod_questionario = %s
-        GROUP BY q.cod_questionario, q.nome, q.tipo, q.status, c.nome, c.cod_classificacao
+        GROUP BY q.cod_questionario, q.nome, q.descricao, q.status, c.nome, c.cod_classificacao
         """
         
         conn = Database.get_connection()
@@ -86,12 +86,11 @@ class QuestionariosModel:
     
     @staticmethod
     def buscar_perguntas(questionario_id):
-        """Busca todas as perguntas de um questionário"""
+        """Busca todas as perguntas de um questionário com suas opções"""
         query = """
         SELECT 
             qu.cod_questao as id,
             qu.texto_questao as texto,
-            qu.tipo_questao as tipo,
             qu.status
         FROM Questionario_Questao qq
         JOIN Questao qu ON qq.questao_cod = qu.cod_questao
@@ -113,31 +112,25 @@ class QuestionariosModel:
                 for row in resultados:
                     pergunta = dict(zip(colunas, row))
                     
-                    # Se for múltipla escolha, buscar opções
-                    if pergunta['tipo'] == 'Múltipla Escolha':
-                        opcoes_query = """
-                        SELECT opcoes 
-                        FROM Questao_Multipla_Escolha 
-                        WHERE questao_cod = %s
-                        """
-                        cursor.execute(opcoes_query, (pergunta['id'],))
-                        opcoes_row = cursor.fetchone()
-                        if opcoes_row and opcoes_row[0]:
-                            # opcoes_row[0] já vem como dict/list do psycopg2 quando é JSONB
-                            import json
-                            opcoes_value = opcoes_row[0]
-                            # Se já for uma lista ou dict, usar diretamente
-                            if isinstance(opcoes_value, (list, dict)):
-                                pergunta['opcoes'] = opcoes_value
-                            # Se for string, tentar fazer parse
-                            elif isinstance(opcoes_value, str):
-                                try:
-                                    pergunta['opcoes'] = json.loads(opcoes_value)
-                                except:
-                                    pergunta['opcoes'] = []
-                            else:
-                                pergunta['opcoes'] = []
+                    # Buscar opções da tabela Opcao
+                    opcoes_query = """
+                    SELECT cod_opcao, texto_opcao, ordem
+                    FROM Opcao
+                    WHERE questao_cod = %s
+                    ORDER BY ordem, cod_opcao
+                    """
+                    cursor.execute(opcoes_query, (pergunta['id'],))
+                    opcoes_rows = cursor.fetchall()
                     
+                    opcoes = []
+                    for opcao_row in opcoes_rows:
+                        opcoes.append({
+                            'cod_opcao': opcao_row[0],
+                            'texto_opcao': opcao_row[1],
+                            'ordem': opcao_row[2]
+                        })
+                    
+                    pergunta['opcoes'] = opcoes
                     perguntas.append(pergunta)
                 
                 return perguntas
@@ -145,12 +138,12 @@ class QuestionariosModel:
             Database.return_connection(conn)
     
     @staticmethod
-    def criar(nome, tipo, classificacao_cod, status='Ativo'):
+    def criar(nome, classificacao_cod, descricao=None, status='Rascunho'):
         """Cria um novo questionário"""
         query = """
-        INSERT INTO Questionario (nome, tipo, status, classificacao_cod)
+        INSERT INTO Questionario (nome, descricao, status, classificacao_cod)
         VALUES (%s, %s, %s, %s)
-        RETURNING cod_questionario as id, nome as titulo, tipo, status, classificacao_cod
+        RETURNING cod_questionario as id, nome as titulo, status, classificacao_cod
         """
         
         conn = Database.get_connection()
@@ -159,7 +152,7 @@ class QuestionariosModel:
         
         try:
             with conn.cursor() as cursor:
-                cursor.execute(query, (nome, tipo, status, classificacao_cod))
+                cursor.execute(query, (nome, descricao, status, classificacao_cod))
                 conn.commit()
                 
                 colunas = [desc[0] for desc in cursor.description]
@@ -170,7 +163,7 @@ class QuestionariosModel:
             Database.return_connection(conn)
     
     @staticmethod
-    def atualizar(questionario_id, nome=None, tipo=None, status=None, classificacao_cod=None):
+    def atualizar(questionario_id, nome=None, descricao=None, status=None, classificacao_cod=None):
         """Atualiza um questionário"""
         campos = []
         valores = []
@@ -179,9 +172,9 @@ class QuestionariosModel:
             campos.append("nome = %s")
             valores.append(nome)
         
-        if tipo is not None:
-            campos.append("tipo = %s")
-            valores.append(tipo)
+        if descricao is not None:
+            campos.append("descricao = %s")
+            valores.append(descricao)
         
         if status is not None:
             campos.append("status = %s")
@@ -200,7 +193,7 @@ class QuestionariosModel:
         UPDATE Questionario
         SET {', '.join(campos)}
         WHERE cod_questionario = %s
-        RETURNING cod_questionario as id, nome as titulo, tipo, status, classificacao_cod
+        RETURNING cod_questionario as id, nome as titulo, status, classificacao_cod
         """
         
         conn = Database.get_connection()

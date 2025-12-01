@@ -114,29 +114,23 @@ function Avaliacao() {
   }
 
   const getStatusBadgeColor = (rating) => {
+    // Seguir mesma regra do backend/dashboard:
+    // rating_geral IS NULL => Pendente, caso contrário => Concluída
     if (rating === null || rating === undefined) {
       return 'badge-rascunho' // Pendente
     }
-    if (rating >= 4) {
-      return 'badge-ativo' // Excelente
-    }
-    if (rating >= 3) {
-      return 'badge-default' // Bom
-    }
-    return 'badge-inativo' // Precisa melhorar
+    return 'badge-ativo' // Concluída
   }
 
   const getStatusText = (rating) => {
     if (rating === null || rating === undefined) {
       return 'Pendente'
     }
-    if (rating >= 4) {
       return 'Concluída'
     }
-    if (rating >= 3) {
-      return 'Em Andamento'
-    }
-    return 'Aguardando'
+
+  const isAvaliacaoConcluida = (rating) => {
+    return rating !== null && rating !== undefined
   }
 
   const filteredAvaliacoes = avaliacoes.filter(avaliacao => {
@@ -188,8 +182,8 @@ function Avaliacao() {
 
   // Calcular estatísticas
   const totalAvaliacoes = avaliacoes.length
-  const avaliacoesConcluidas = avaliacoes.filter(a => a.rating !== null && a.rating !== undefined).length
-  const avaliacoesPendentes = avaliacoes.filter(a => a.rating === null || a.rating === undefined).length
+  const avaliacoesConcluidas = avaliacoes.filter(a => isAvaliacaoConcluida(a.rating)).length
+  const avaliacoesPendentes = totalAvaliacoes - avaliacoesConcluidas
   const funcionariosAvaliados = new Set(avaliacoes.map(a => a.funcionario_cpf).filter(Boolean)).size
 
   if (loading) {
@@ -347,8 +341,8 @@ function Avaliacao() {
                     >
                       <EyeIcon />
                     </button>
-                    {/* Botão Editar Configurações - apenas quando não estiver completa */}
-                    {(avaliacao.rating === null || avaliacao.rating === undefined) && (
+                    {/* Botão Editar Configurações - permitido para Pendente e Em Andamento (não concluída) */}
+                    {!isAvaliacaoConcluida(avaliacao.rating) && (
                       <button 
                         className="btn-action btn-edit" 
                         title="Editar configurações da avaliação"
@@ -358,8 +352,8 @@ function Avaliacao() {
                         <EditIcon />
                       </button>
                     )}
-                    {/* Botão Completar Avaliação - apenas quando não estiver completa */}
-                    {(avaliacao.rating === null || avaliacao.rating === undefined) && (
+                    {/* Botão Completar Avaliação - permitido para Pendente e Em Andamento (não concluída) */}
+                    {!isAvaliacaoConcluida(avaliacao.rating) && (
                       <button 
                         className="btn-action btn-complete" 
                         title="Completar avaliação"

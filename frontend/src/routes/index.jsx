@@ -10,7 +10,7 @@ import EditarQuestionario from '../components/Questionarios/EditarQuestionario'
 import Funcionarios from '../components/Funcionarios/Funcionarios'
 import Avaliacao from '../components/Avaliacao/Avaliacao'
 import NovaAvaliacao from '../components/Avaliacao/NovaAvaliacao'
-import Relatorios from '../components/Relatorios/Relatorios'
+import Configuracao from '../components/Configuracao/Configuracao'
 import NotFound from '../components/common/NotFound'
 
 // Componente de layout que inclui a navbar
@@ -29,7 +29,7 @@ const AppRoutes = () => {
         <Route path="funcionarios" element={<Funcionarios />} />
         <Route path="avaliacoes" element={<Avaliacao />} />
         <Route path="avaliacoes/nova" element={<NovaAvaliacao />} />
-        <Route path="relatorios" element={<Relatorios />} />
+        <Route path="configuracao" element={<Configuracao />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

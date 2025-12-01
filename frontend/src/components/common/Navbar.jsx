@@ -18,8 +18,7 @@ function Navbar({ currentPage, setCurrentPage }) {
     { id: 'avaliadores', label: 'Avaliadores', icon: <AvaliadoresIcon /> },
     { id: 'questionarios', label: 'Questionários', icon: <FormsIcon /> },
     { id: 'perguntas', label: 'Perguntas', icon: <QuestionsIcon /> },
-    { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-    { id: 'relatorios', label: 'Relatórios', icon: <ReportsIcon /> }
+    { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> }
   ]
 
   const handleThemeToggle = () => {

@@ -13,8 +13,8 @@ class DashboardModel:
             SELECT 
                 (SELECT COUNT(*) FROM Questao WHERE status = 'Ativo') AS perguntas_cadastradas,
                 (SELECT COUNT(*) FROM Questionario WHERE status = 'Ativo') AS formularios_ativos,
-                (SELECT COUNT(*) FROM Avaliacao WHERE rating IS NULL) AS avaliacoes_pendentes,
-                (SELECT COUNT(*) FROM Avaliacao WHERE rating IS NOT NULL) AS avaliacoes_concluidas,
+                (SELECT COUNT(*) FROM Avaliacao WHERE rating_geral IS NULL) AS avaliacoes_pendentes,
+                (SELECT COUNT(*) FROM Avaliacao WHERE rating_geral IS NOT NULL) AS avaliacoes_concluidas,
                 (SELECT COUNT(*) FROM Funcionario WHERE status = 'Ativo') AS funcionarios_ativos,
                 (SELECT COUNT(DISTINCT avaliador_cpf) FROM Avaliacao WHERE avaliador_cpf IS NOT NULL) AS avaliadores_ativos
         """
@@ -46,6 +46,49 @@ class DashboardModel:
         """
         
         return execute_query(query, (limite_meses,))
+    
+    @staticmethod
+    def pontos_por_data(data_inicial=None, data_final=None, limite_dias=None):
+        """Retorna total de pontos (rating_geral) agrupados por data"""
+        query = """
+            SELECT 
+                TO_CHAR(DATE(a.data_completa), 'YYYY-MM-DD') AS data,
+                TO_CHAR(DATE(a.data_completa), 'DD/MM/YYYY') AS data_formatada,
+                COALESCE(SUM(a.rating_geral), 0) AS total_pontos,
+                COUNT(a.cod_avaliacao) AS total_avaliacoes
+            FROM Avaliacao a
+            WHERE a.rating_geral IS NOT NULL
+        """
+        
+        params = []
+        
+        # Se data_inicial e data_final foram fornecidas, usar elas
+        if data_inicial and data_final:
+            query += " AND DATE(a.data_completa) >= %s AND DATE(a.data_completa) <= %s"
+            params.extend([data_inicial, data_final])
+        elif data_inicial:
+            query += " AND DATE(a.data_completa) >= %s"
+            params.append(data_inicial)
+        elif data_final:
+            query += " AND DATE(a.data_completa) <= %s"
+            params.append(data_final)
+        elif limite_dias:
+            # Se não há datas específicas mas há limite de dias, usar limite
+            query += " AND a.data_completa >= CURRENT_DATE - (INTERVAL '1 day' * %s)"
+            params.append(limite_dias)
+        # Se nenhum filtro foi fornecido, buscar todos os dados
+        
+        query += """
+            GROUP BY DATE(a.data_completa)
+            ORDER BY DATE(a.data_completa) ASC
+        """
+        
+        results = execute_query(query, tuple(params) if params else None)
+        print(f"[DEBUG] Pontos por data - data_inicial: {data_inicial}, data_final: {data_final}, limite_dias: {limite_dias}, resultados: {len(results) if results else 0}")
+        if results and len(results) > 0:
+            print(f"[DEBUG] Primeiro resultado: {results[0]}")
+            print(f"[DEBUG] Último resultado: {results[-1]}")
+        return results
     
     @staticmethod
     def motivos_saida_principais():
@@ -95,31 +138,31 @@ class DashboardModel:
         query = """
             SELECT 
                 CASE 
-                    WHEN rating IS NOT NULL THEN 'Concluídas'
+                    WHEN rating_geral IS NOT NULL THEN 'Concluídas'
                     WHEN data_completa < NOW() - INTERVAL '7 days' THEN 'Pendentes'
                     ELSE 'Em Andamento'
                 END AS status,
                 COUNT(*) AS valor,
                 CASE 
-                    WHEN rating IS NOT NULL THEN '#4caf50'
+                    WHEN rating_geral IS NOT NULL THEN '#4caf50'
                     WHEN data_completa < NOW() - INTERVAL '7 days' THEN '#ff9800'
                     ELSE '#2196f3'
                 END AS cor
             FROM Avaliacao
             GROUP BY 
                 CASE 
-                    WHEN rating IS NOT NULL THEN 'Concluídas'
+                    WHEN rating_geral IS NOT NULL THEN 'Concluídas'
                     WHEN data_completa < NOW() - INTERVAL '7 days' THEN 'Pendentes'
                     ELSE 'Em Andamento'
                 END,
                 CASE 
-                    WHEN rating IS NOT NULL THEN '#4caf50'
+                    WHEN rating_geral IS NOT NULL THEN '#4caf50'
                     WHEN data_completa < NOW() - INTERVAL '7 days' THEN '#ff9800'
                     ELSE '#2196f3'
                 END
             ORDER BY 
                 CASE 
-                    WHEN rating IS NOT NULL THEN 1
+                    WHEN rating_geral IS NOT NULL THEN 1
                     WHEN data_completa < NOW() - INTERVAL '7 days' THEN 2
                     ELSE 3
                 END
@@ -129,19 +172,20 @@ class DashboardModel:
     
     @staticmethod
     def avaliacoes_por_setor():
-        """Retorna quantidade de avaliações por setor"""
+        """Retorna quantidade de avaliações por setor com média de pontuação"""
         query = """
             SELECT 
                 f.setor AS departamento,
                 COUNT(a.cod_avaliacao) AS total,
-                COUNT(CASE WHEN a.rating IS NOT NULL THEN 1 END) AS concluidas,
-                COUNT(CASE WHEN a.rating IS NULL THEN 1 END) AS pendentes
+                COUNT(CASE WHEN a.rating_geral IS NOT NULL THEN 1 END) AS concluidas,
+                COUNT(CASE WHEN a.rating_geral IS NULL THEN 1 END) AS pendentes,
+                ROUND(AVG(a.rating_geral)::NUMERIC, 2) AS pontuacao_media
             FROM Funcionario f
             LEFT JOIN Avaliacao a ON f.cpf = a.avaliado_cpf
             WHERE f.setor IS NOT NULL
             GROUP BY f.setor
             HAVING COUNT(a.cod_avaliacao) > 0
-            ORDER BY total DESC
+            ORDER BY COALESCE(AVG(a.rating_geral), 0) DESC, total DESC
         """
         
         return execute_query(query)
@@ -164,18 +208,17 @@ class DashboardModel:
     
     @staticmethod
     def distribuicao_respostas_escolha():
-        """Distribuição de respostas de escolha"""
+        """Distribuição de respostas de escolha (Modelo 2: usando opcao_cod)"""
         query = """
             SELECT 
                 q.cod_questao,
                 q.texto_questao AS pergunta,
-                re.escolha AS resposta,
+                o.texto_opcao AS resposta,
                 COUNT(*) AS quantidade
             FROM Resposta r
             JOIN Questao q ON r.questao_cod = q.cod_questao
-            JOIN Resposta_Escolha re ON r.cod_resposta = re.resposta_cod
-            WHERE r.tipo_resposta = 'Escolha'
-            GROUP BY q.cod_questao, q.texto_questao, re.escolha
+            JOIN Opcao o ON r.opcao_cod = o.cod_opcao
+            GROUP BY q.cod_questao, q.texto_questao, o.texto_opcao
             ORDER BY q.cod_questao, quantidade DESC
         """
         
@@ -191,13 +234,13 @@ class DashboardModel:
                         'avaliacao' AS tipo,
                         a.cod_avaliacao AS id,
                         'Avaliação ' || CASE 
-                            WHEN a.rating IS NOT NULL THEN 'concluída'
+                            WHEN a.rating_geral IS NOT NULL THEN 'concluída'
                             ELSE 'realizada'
                         END AS titulo,
                         f.nome || ' - ' || q.nome AS descricao,
                         a.data_completa AS data,
                         CASE 
-                            WHEN a.rating IS NOT NULL THEN '#4caf50'
+                            WHEN a.rating_geral IS NOT NULL THEN '#4caf50'
                             ELSE '#2196f3'
                         END AS cor,
                         CASE
@@ -226,12 +269,12 @@ class DashboardModel:
         """Calcula taxa de conclusão de avaliações"""
         query = """
             SELECT 
-                COUNT(CASE WHEN rating IS NOT NULL THEN 1 END) AS concluidas,
-                COUNT(CASE WHEN rating IS NULL AND data_completa < NOW() - INTERVAL '7 days' THEN 1 END) AS pendentes,
-                COUNT(CASE WHEN rating IS NULL AND data_completa >= NOW() - INTERVAL '7 days' THEN 1 END) AS em_andamento,
+                COUNT(CASE WHEN rating_geral IS NOT NULL THEN 1 END) AS concluidas,
+                COUNT(CASE WHEN rating_geral IS NULL AND data_completa < NOW() - INTERVAL '7 days' THEN 1 END) AS pendentes,
+                COUNT(CASE WHEN rating_geral IS NULL AND data_completa >= NOW() - INTERVAL '7 days' THEN 1 END) AS em_andamento,
                 COUNT(*) AS total,
                 ROUND(
-                    (COUNT(CASE WHEN rating IS NOT NULL THEN 1 END)::NUMERIC / 
+                    (COUNT(CASE WHEN rating_geral IS NOT NULL THEN 1 END)::NUMERIC / 
                      NULLIF(COUNT(*), 0)) * 100, 
                     1
                 ) AS taxa_conclusao
@@ -248,15 +291,32 @@ class DashboardModel:
             SELECT 
                 q.cod_questionario,
                 q.nome,
-                q.tipo,
                 COUNT(a.cod_avaliacao) AS total_usos,
-                AVG(a.rating) AS media_rating
+                AVG(a.rating_geral) AS media_rating
             FROM Questionario q
             LEFT JOIN Avaliacao a ON q.cod_questionario = a.questionario_cod
             WHERE q.status = 'Ativo'
-            GROUP BY q.cod_questionario, q.nome, q.tipo
+            GROUP BY q.cod_questionario, q.nome
             ORDER BY total_usos DESC
             LIMIT 5
+        """
+        
+        return execute_query(query)
+    
+    @staticmethod
+    def avaliacoes_por_questionario():
+        """Retorna quantidade de avaliações por questionário para gráfico de pizza"""
+        query = """
+            SELECT 
+                q.nome AS questionario,
+                q.cod_questionario AS id,
+                COUNT(a.cod_avaliacao) AS total
+            FROM Questionario q
+            LEFT JOIN Avaliacao a ON q.cod_questionario = a.questionario_cod
+            WHERE q.status = 'Ativo'
+            GROUP BY q.cod_questionario, q.nome
+            HAVING COUNT(a.cod_avaliacao) > 0
+            ORDER BY total DESC
         """
         
         return execute_query(query)
